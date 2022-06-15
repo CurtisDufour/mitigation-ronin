@@ -1,6 +1,7 @@
 
 
 
+
 # -*- coding: utf-8 -*-
 """
 Created on Fri May 27 13:06:05 2022
@@ -44,14 +45,14 @@ class App(tk.Tk):
         #text boxes
         ######################################## IP box #############################################################
         self.txt_ip = scrolledtext.ScrolledText(self, wrap=tk.WORD,
-                                             width=40, height=8,
+                                             width=40, height=6,
                                              font=("Arial", 12))
-        self.txt_ip.grid(column=1, row=4, pady=30, padx=30)
+        self.txt_ip.grid(column=1, row=2, pady=30, padx=30)
         self.txt_ip.insert(tk.END, "paste your IP's here: ")
         self.txt_ip.focus()
         #domain box
         self.txt_dom = scrolledtext.ScrolledText(self, wrap=tk.WORD,
-                                             width=40, height=8,
+                                             width=40, height=6,
                                              font=("Arial", 12))
         self.txt_dom.grid(column=1, row=7, pady=30, padx=30)
         self.txt_dom.insert(tk.END, "paste your domains here: ")
@@ -66,10 +67,12 @@ class App(tk.Tk):
         
         ###################################### need to do tksheet - fix the input tot he sheet ##########################
         self.sheet = tksheet.Sheet(self, 
+                                   show_table=True,
+                                   expand_sheet_if_paste_too_big=True,
                                    show_header=True,
-                                   width=800,
-                                   align="w",
-                                   total_columns = 10,
+                                   width=850,
+                                   align="c",
+                                   all_columns_displayed=True,
                                    show_y_scrollbar=True)
         self.sheet.change_theme("dark")
         self.sheet.set_sheet_data(self.mit_ref())
@@ -98,13 +101,17 @@ class App(tk.Tk):
                                          "delete",
                                          "undo",
                                          "edit_cell"))
-        self.sheet.grid(column=1, row=12, sticky = "ns")
+        self.sheet.grid(column=1, row=10, sticky="e")
+        ############################### non-mitigated domains
+        self.nondom_sheet = self.sheet
+        self.nondom_sheet.grid(column=1, row=20)
+
 
     
     # This gives a pop-up of the results of the mitigation search.
     def clicked_ip(self):
         # Data must be expressed as a list of lists...
-        self.sheet.set_sheet_data([v for v in list(self.mit_ref())])
+        self.sheet.set_sheet_data([i for i in self.mit_ref().values.tolist()])
         
     def clicked_dom(self):
         try:
@@ -123,57 +130,64 @@ class App(tk.Tk):
             print(badguys)
             df_mit.append(self.df1.loc[self.df1.CIDR == str([i for i in badguys])])
             return df_mit
-            #df_mit.append([ i for i in self.df1.loc[self.df1["CIDR"] == i]])
             
         except:
-            #print("Not there")
             df_mit.append(self.df1.loc[self.df1.CIDR== "Not there"])
             return df_mit
         
         ######################################  This seems to work ###############################
     def mit_ref(self):
-        ip_input = self.txt_ip.get("1.0","end-1c").splitlines()
-        #print(ip_input)
-        try: 
-            self.df_mit = pd.DataFrame()
-            #res_list =[]
-            for i in ip_input: #self.txt_ip.get("1.0","end-1c").splitlines():
-                if i in list(self.df1["CIDR"]):
-                    self.res = self.df1.loc[self.df1["CIDR"] == i] # prints the row
-                    #print(f"the type of res variable is {type(res)}")
-                    print(f"{i} is in the Bad Guy list.")
-                    #df_mit.append(res)
-                    #return res
+        self.ip_input = self.txt_ip.get("1.0","end-1c").splitlines()
+        try:
+            self.not_ips = self.df1.loc[~self.df1["CIDR"].isin(self.ip_input)]
+            return self.df1.loc[self.df1["CIDR"].isin(self.ip_input)]
+        except: 
+            return ValueError
+        # try: 
+        #     self.df_mit = pd.DataFrame()
+        #     #res_list =[]
+        #     for i in ip_input: #self.txt_ip.get("1.0","end-1c").splitlines():
+        #         if i in list(self.df1["CIDR"]):
+        #             self.res = self.df1.loc[self.df1["CIDR"] == i] # prints the row
+        #             #print(f"the type of res variable is {type(res)}")
+        #             print(f"{i} is in the Bad Guy list.")
+        #             #df_mit.append(res)
+        #             #return res
 
-                elif i in list(self.df2["CIDR"]):
-                    self.res = self.df2.loc[self.df2["CIDR"] == i] # prints the row
-                    #df_mit.append(res)
-                    #return res
+        #         elif i in list(self.df2["CIDR"]):
+        #             self.res = self.df2.loc[self.df2["CIDR"] == i] # prints the row
+        #             #df_mit.append(res)
+        #             #return res
                     
-                elif i in list(self.df3["CIDR"]):
-                    self.res = self.df3.loc[self.df3["CIDR"] == i] # prints the row
-                    #df_mit.append(res)
-                    #return res
-                elif i in list(self.df4["CIDR"]):
-                    self.res = self.df4.loc[self.df4["CIDR"] == i] # prints the row
-                    #df_mit.append(res)
-                    #return res
-                else: 
-                    return f"{i} does not yield results. "
-                    continue
-                print(type(self.res))
-                return self.res
+        #         elif i in list(self.df3["CIDR"]):
+        #             self.res = self.df3.loc[self.df3["CIDR"] == i] # prints the row
+        #             #df_mit.append(res)
+        #             #return res
+        #         elif i in list(self.df4["CIDR"]):
+        #             self.res = self.df4.loc[self.df4["CIDR"] == i] # prints the row
+        #             #df_mit.append(res)
+        #             #return res
+        #         else: 
+        #             return f"{i} does not yield results. "
+        #             continue
+        #         print(type(self.res))
+        #         return self.res
                 
                 
-        except ValueError:
-            return "I am Error"
-            pass
+        # except ValueError:
+        #     return "I am Error"
+        #     pass
         ########################### This is successful #########################
         # TODO: highlight or separate table for negative hits
     def dom_search(self): 
-        doms = self.txt_dom.get("1.0", "end-1c").splitlines()
-        self.not_dom = self.df5.loc[~self.df5["Domain"].isin(doms)]
-        return self.df5.loc[self.df5["Domain"].isin(doms)]
+        try:
+            self.doms = self.txt_dom.get("1.0", "end-1c").splitlines()
+            self.not_dom = self.df5.loc[~self.df5["Domain"].isin(self.doms)]
+            return self.df5.loc[self.df5["Domain"].isin(self.doms)]
+        except self.not_dom:
+            return self.df6.loc[self.df6["Domain"].isin(list(self.not_dom["Domain"]))]
+        except not self.df6.loc[self.df6["Domain"].isin(list(self.not_dom["Domain"]))]:
+            return 
 
 
 
@@ -182,6 +196,9 @@ if __name__ == "__main__":
     app.mainloop()
     
     
+
+
+
 
 
 
