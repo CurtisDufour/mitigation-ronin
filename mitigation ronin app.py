@@ -1,7 +1,9 @@
+
+
+
 # -*- coding: utf-8 -*-
 """
 Created on Fri May 27 13:06:05 2022
-
 @author: curtis.m.dufour
 """
 
@@ -27,7 +29,6 @@ class App(tk.Tk):
     df_dict = f.parse(sheet_name=[0, 1, 2, 3, 4, 5, 6]) # imports dictionary
     s = list(df_dict.keys()) 
     df1, df2, df3, df4, df5, df6, df7 = list(df_dict.values())
-    # list(map(lambda x: str(IPv4Address(int(x))), first))
     
     
     def __init__(self):
@@ -43,7 +44,7 @@ class App(tk.Tk):
         #text boxes
         ######################################## IP box #############################################################
         self.txt_ip = scrolledtext.ScrolledText(self, wrap=tk.WORD,
-                                             width=60, height=8,
+                                             width=40, height=8,
                                              font=("Arial", 12))
         self.txt_ip.grid(column=1, row=4, pady=30, padx=30)
         self.txt_ip.insert(tk.END, "paste your IP's here: ")
@@ -103,11 +104,15 @@ class App(tk.Tk):
     # This gives a pop-up of the results of the mitigation search.
     def clicked_ip(self):
         # Data must be expressed as a list of lists...
-        self.sheet.set_sheet_data([v for v in self.mit_ref()])
+        self.sheet.set_sheet_data([v for v in list(self.mit_ref())])
         
     def clicked_dom(self):
-        showinfo(title="testing",
-                 message="this is a test of the domain button")
+        try:
+            self.sheet.set_sheet_data([d for d in self.dom_search().values.tolist()])
+        except:
+            self.sheet.set_sheet_data([f"{d} returns no results" for d in self.dom_search.values.tolist()])
+        #showinfo(title="testing",
+        #         message="this is a test of the domain button")
         
         ############################################ I think this is broken ################################
     def ip_mit(self):
@@ -130,39 +135,45 @@ class App(tk.Tk):
         ip_input = self.txt_ip.get("1.0","end-1c").splitlines()
         #print(ip_input)
         try: 
-            df_mit = pd.DataFrame()
+            self.df_mit = pd.DataFrame()
             #res_list =[]
             for i in ip_input: #self.txt_ip.get("1.0","end-1c").splitlines():
                 if i in list(self.df1["CIDR"]):
-                    res = self.df1.loc[self.df1["CIDR"] == i] # prints the row
-                    print(type(res))
+                    self.res = self.df1.loc[self.df1["CIDR"] == i] # prints the row
+                    #print(f"the type of res variable is {type(res)}")
                     print(f"{i} is in the Bad Guy list.")
-                    df_mit.append(res)
-                    return res
+                    #df_mit.append(res)
+                    #return res
 
                 elif i in list(self.df2["CIDR"]):
-                    res = self.df2.loc[self.df2["CIDR"] == i] # prints the row
-                    df_mit.append(res)
-                    return res
-                    pass
+                    self.res = self.df2.loc[self.df2["CIDR"] == i] # prints the row
+                    #df_mit.append(res)
+                    #return res
+                    
                 elif i in list(self.df3["CIDR"]):
-                    res = self.df3.loc[self.df3["CIDR"] == i] # prints the row
-                    df_mit.append(res)
-                    return res
-                    pass
+                    self.res = self.df3.loc[self.df3["CIDR"] == i] # prints the row
+                    #df_mit.append(res)
+                    #return res
                 elif i in list(self.df4["CIDR"]):
-                    res = self.df4.loc[self.df4["CIDR"] == i] # prints the row
-                    df_mit.append(res)
-                    return res
-                    pass
+                    self.res = self.df4.loc[self.df4["CIDR"] == i] # prints the row
+                    #df_mit.append(res)
+                    #return res
                 else: 
                     return f"{i} does not yield results. "
                     continue
+                print(type(self.res))
+                return self.res
                 
                 
         except ValueError:
             return "I am Error"
             pass
+        ########################### This is successful #########################
+        # TODO: highlight or separate table for negative hits
+    def dom_search(self): 
+        doms = self.txt_dom.get("1.0", "end-1c").splitlines()
+        self.not_dom = self.df5.loc[~self.df5["Domain"].isin(doms)]
+        return self.df5.loc[self.df5["Domain"].isin(doms)]
 
 
 
@@ -171,6 +182,8 @@ if __name__ == "__main__":
     app.mainloop()
     
     
+
+
 
 
 
