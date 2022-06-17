@@ -30,7 +30,7 @@ class App(tk.Tk):
     df_dict = f.parse(sheet_name=[0, 1, 2, 3, 4, 5, 6]) # imports dictionary
     s = list(df_dict.keys()) 
     df1, df2, df3, df4, df5, df6, df7 = list(df_dict.values())
-    
+        
     
     def __init__(self):
         super().__init__()
@@ -226,7 +226,13 @@ class App(tk.Tk):
     
     def ip_trans(self, binary):
         # This should transform ip's back to 32bit integers for storage in the reference sheet
-        return int(str(ipaddress_ip_address(binary))
+        return int(str(ipaddress.ip_address(binary))
+    
+    # This should apply bin_trans to df1's first two rows... I hope
+    df1.apply(lambda x: bin_trans(df1.iloc[0,1]), axis=1)
+    # This should do the opposite?
+    df1.apply(lambda x: ip_trans(df1.iloc[0,1]), axis=1)
+                  
     
              
 
