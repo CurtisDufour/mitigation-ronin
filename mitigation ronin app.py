@@ -217,6 +217,18 @@ class App(tk.Tk):
             return ref_match
         except:
             return ValueError
+        
+        ################################ code wrote without IDE; very experimental ###################
+        # Need to apply these to the IP's displayed in the dataframe for first and last binaries
+    def bin_trans(self, binary):
+        # This should work for both IPv4 and IPv6
+        return str(ipaddress.ip_address(binary))
+    
+    def ip_trans(self, binary):
+        # This should transform ip's back to 32bit integers for storage in the reference sheet
+        return int(str(ipaddress_ip_address(binary))
+    
+             
 
 
 
