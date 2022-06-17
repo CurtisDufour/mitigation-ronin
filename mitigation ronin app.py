@@ -229,9 +229,9 @@ class App(tk.Tk):
         return int(str(ipaddress.ip_address(binary))
     
     # This should apply bin_trans to df1's first two rows... I hope
-    df1.apply(lambda x: bin_trans(df1.iloc[0,1]), axis=1)
+    df1[[0,1]] = df1[[0,1]].transform(bin_trans)
     # This should do the opposite?
-    df1.apply(lambda x: ip_trans(df1.iloc[0,1]), axis=1)
+    df1[[0,1]] = df1[[0,1]].transform(ip_trans)
                   
     
              
