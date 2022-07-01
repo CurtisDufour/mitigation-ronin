@@ -23,7 +23,9 @@ class App(tk.Tk):
     df_dict = f.parse(sheet_name=[0, 1, 2, 3, 4, 5, 6]) # imports dictionary
     s = list(df_dict.keys()) 
     df1, df2, df3, df4, df5, df6, df7 = list(df_dict.values())
-    
+    df1['First Binary'] = df1['First Binary'].apply(lambda x: ipaddress.ip_address(x)) 
+    df1['Last Binary'] = df1['Last Binary'].apply(lambda x: ipaddress.ip_address(x))
+
     def __init__(self):
         super().__init__()
         self.title("Mitigation Ronin.py")
@@ -59,9 +61,9 @@ class App(tk.Tk):
         self.update_btn['command'] = self.clicked_update
         self.update_btn.grid(column=1, row=12)
         self.update_btn_cache = []
-        self.uwu_btn = ttk.Button(self, text="UwU")
-        self.uwu_btn['command'] = self.uwu_it
-        self.uwu_btn.grid(column=2, row=12)
+        # self.uwu_btn = ttk.Button(self, text="UwU")
+        # self.uwu_btn['command'] = self.uwu_it
+        # self.uwu_btn.grid(column=2, row=12)
         ###################################### need to do tksheet - fix the input tot he sheet ##########################
         self.sheet = tksheet.Sheet(self, 
                                    show_table=True,
@@ -72,7 +74,7 @@ class App(tk.Tk):
                                    all_columns_displayed=True,
                                    show_y_scrollbar=True)
         self.sheet.change_theme("dark")
-        self.sheet.set_sheet_data(self.mit_ref())
+        self.sheet.set_sheet_data(self.ip_search())
         self.sheet.enable_bindings(("single_select", #"single_select" or "toggle_select"
                                          "drag_select",   #enables shift click selection as well
                                          "column_drag_and_drop",
@@ -98,7 +100,7 @@ class App(tk.Tk):
                                          "delete",
                                          "undo",
                                          "edit_cell"))
-        self.sheet.grid(column=1, row=10, padx=5,pady=5, sticky="w")
+        self.sheet.grid(column=1, row=10, padx=5,pady=5, sticky="nswe")
         ############################### non-mitigated domains; add 
         self.sub_sheet = tksheet.Sheet(self, 
                                    show_table=True,
@@ -152,12 +154,22 @@ class App(tk.Tk):
     # This gives a pop-up of the results of the mitigation search.
     def clicked_ip(self):
         # Data must be expressed as a list of lists...
-        self.sheet.set_sheet_data([i for i in self.mit_ref().values.tolist()])
+        self.uwu_it()
+        self.sheet.set_sheet_data([i for i in self.ip_search().values.tolist()])
+        self.sub_sheet.set_sheet_data([i for i in self.ip_mit.values.tolist()])
+
+        self.sheet.headers(newheaders = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        self.sub_sheet.headers(newheaders=['Mitigate', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        self.sub_sheet.create_checkbox(r="all",
+                                       c=0,
+                                       checked = False,
+                                       text = "Checkbox")
+        self.sub_sheet.create_header_checkbox(c=0, text="Mitigate", checked=True, check_function=self.check_all)
+
         
     def clicked_dom(self):
         try:
             # pandas data has to be expressed as list of lists
-
             self.sheet.set_sheet_data([d for d in self.dom_search().values.tolist()])
             self.sub_sheet.set_sheet_data([n for n in self.df_mit.values.tolist()])
             ## I think I can create a function in the header checkbox to check all for the other boxes...
@@ -165,8 +177,8 @@ class App(tk.Tk):
             self.sub_sheet.headers(newheaders = ['Mitigate', 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
             self.sub_sheet.create_checkbox(r="all",
                                            c=0,
-                           checked = False,
-                           text = "Checkbox")
+                                           checked = False,
+                                           text = "Checkbox")
             self.sub_sheet.create_header_checkbox(c=0, text="Mitigate", checked=True, check_function=self.check_all)
         except:
             self.sheet.set_sheet_data([f"{d} returns no results" for d in self.dom_search.values.tolist()][0])
@@ -174,6 +186,7 @@ class App(tk.Tk):
         #         message="this is a test of the domain button")
         
     def clicked_update(self):
+        self.uwu_it()
         # append 
         for i in self.update_btn_cache:
             pass
@@ -201,16 +214,23 @@ class App(tk.Tk):
     #         return df_mit
         
         ######################################  This seems to work ###############################
-    def mit_ref(self):
-        self.ip_input = self.txt_ip.get("1.0","end-1c").splitlines()
+    def ip_search(self):
+        ips = self.txt_ip.get("1.0","end-1c").splitlines()
+        ips = [i.strip() for i in ips]
+        self.ip_mit = pd.DataFrame(columns=['Mitigate', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
         try:
-            self.not_ips = self.df1.loc[~self.df1["CIDR"].isin(self.ip_input)]
-            return self.df1.loc[self.df1["CIDR"].isin(self.ip_input)]
+            #ips = [f"{i}/32" for i in ips if not ipaddress.ip_address(i)] This isn't working
+            ip_list = self.df1['CIDR'].tolist()
+            self.not_ips = [i for i in ips if i not in ip_list]
+            self.df_ref = self.df1.loc[self.df1["CIDR"].isin(ips)]
+            self.ip_mit['CIDR'] = self.not_ips
+            self.df_ref.insert(0, "Mitigate", ["Mitigated" for i in range(len(self.df_ref.index))])
+            return self.df_ref#self.df1.loc[self.df1["CIDR"].isin(ips)]
         except: 
             return ValueError
 
         ########################### This is successful #########################
-        # TODO: highlight or separate table for negative hits
+
     def dom_search(self): 
         # create list from input box
         doms = self.txt_dom.get("1.0", "end-1c").splitlines()
@@ -242,6 +262,9 @@ if __name__ == "__main__":
     app.mainloop()
     
     
+
+
+
 
 
 
