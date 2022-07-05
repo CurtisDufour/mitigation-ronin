@@ -8,6 +8,8 @@ import tksheet
 from tkinter import ttk
 from tkinter import scrolledtext
 from tkinter.messagebox import showinfo
+from tkinter import filedialog
+from tkinter.filedialog import askopenfile
 import pandas as pd
 import ipaddress
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
@@ -29,15 +31,18 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Mitigation Ronin.py")
-        self.geometry('900x1800')
+        self.geometry('1000x1200')
         #label
         self.lbl = tk.Label(self, text="Welcome to Mitigation Ronin!", font=('Arial', 14))
-        self.lbl.grid(column=1, row=0, padx=10, pady=10)
-
+        self.lbl.grid(column=1, row=0, padx=10, pady=10, sticky='nswe')
+        self.my_str = tk.StringVar()
+        self.f_lbl = tk.Label(self, textvariable=self.my_str,bg='black', fg='lightgreen')
+        self.my_str.set("")
+        self.f_lbl.grid(column=1, row=1, sticky='nse', padx=140)
         #text boxes
         ######################################## IP box #############################################################
         self.txt_ip = scrolledtext.ScrolledText(self, wrap=tk.WORD,
-                                             width=40, height=6,
+                                             width=40, height=5,
                                              font=("Arial", 12))
         self.txt_ip.grid(column=1, row=2, pady=10, padx=10)
         self.txt_ip.insert(tk.END, "paste your IP's here: ")
@@ -45,7 +50,7 @@ class App(tk.Tk):
         
         ####################################### #domain box
         self.txt_dom = scrolledtext.ScrolledText(self, wrap=tk.WORD,
-                                             width=40, height=6,
+                                             width=40, height=5,
                                              font=("Arial", 12))
         self.txt_dom.grid(column=1, row=7, pady=10, padx=10)
         self.txt_dom.insert(tk.END, "paste your domains here: ")
@@ -61,6 +66,9 @@ class App(tk.Tk):
         self.update_btn['command'] = self.clicked_update
         self.update_btn.grid(column=1, row=12)
         self.update_btn_cache = []
+        self.upload_btn = ttk.Button(self, text='Upload Reference File')
+        self.upload_btn['command'] = lambda:self.upload_file()
+        self.upload_btn.grid(column=1, row=1, sticky='nsw', padx=200)
         # self.uwu_btn = ttk.Button(self, text="UwU")
         # self.uwu_btn['command'] = self.uwu_it
         # self.uwu_btn.grid(column=2, row=12)
@@ -69,7 +77,7 @@ class App(tk.Tk):
                                    show_table=True,
                                    expand_sheet_if_paste_too_big=True,
                                    show_header=True,
-                                   width=800,
+                                   width=900,
                                    align="c",
                                    all_columns_displayed=True,
                                    show_y_scrollbar=True)
@@ -100,13 +108,13 @@ class App(tk.Tk):
                                          "delete",
                                          "undo",
                                          "edit_cell"))
-        self.sheet.grid(column=1, row=10, padx=5,pady=5, sticky="nswe")
+        self.sheet.grid(column=1, row=10, padx=15,pady=5, sticky="nswe")
         ############################### non-mitigated domains; add 
         self.sub_sheet = tksheet.Sheet(self, 
                                    show_table=True,
                                    expand_sheet_if_paste_too_big=True,
                                    show_header=True,
-                                   width=800,
+                                   width=900,
                                    align="c",
                                    all_columns_displayed=True,
                                    show_y_scrollbar=True)
@@ -149,7 +157,16 @@ class App(tk.Tk):
                                          "edit_cell"))
 
 
-        self.sub_sheet.grid(column=1, row=11, padx=5, pady=5, sticky="nswe")
+        self.sub_sheet.grid(column=1, row=11, padx=15, pady=5, sticky="nswe")
+        
+    def upload_file(self):
+        file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])#, ("All Files"), ("*.*")])
+        if file:
+            self.my_str.set(file)
+            return file
+        else:
+            print("File not chosen.")
+        
 
     # This gives a pop-up of the results of the mitigation search.
     def clicked_ip(self):
@@ -196,10 +213,6 @@ class App(tk.Tk):
         pass
     
         ############################################ I think this is broken ################################
-    def uwu_it(self):
-        flags = uwuify.SMILEY | uwuify.YU
-        resp = uwuify.uwu(self.lbl['text'], flags=flags)
-        self.lbl["text"] = resp
     # def ip_mit(self):
     #     df_mit = pd.DataFrame()
     #     ips = self.txt_ip.get("1.0","end-1c").splitlines()
@@ -250,18 +263,23 @@ class App(tk.Tk):
 
     # Trying to write a function to tie to header checkbox
     def check_all(self, r="all", c=0, checked=False):
-        
         self.sub_sheet.create_checkbox(r="all",
                                    c=0,      
                                    checked=True, 
                                    redraw=True,
                                    text="selected")
+        
+    def uwu_it(self):
+        flags = uwuify.SMILEY | uwuify.YU
+        resp = uwuify.uwu(self.lbl['text'], flags=flags)
+        self.lbl["text"] = resp
 
 if __name__ == "__main__":
     app = App()
     app.mainloop()
     
     
+
 
 
 
