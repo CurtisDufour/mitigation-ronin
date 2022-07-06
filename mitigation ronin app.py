@@ -7,7 +7,7 @@ import tkinter as tk
 import tksheet
 from tkinter import ttk
 from tkinter import scrolledtext
-from tkinter.messagebox import showinfo
+from tkinter import messagebox
 from tkinter import filedialog
 from tkinter.filedialog import askopenfile
 import pandas as pd
@@ -17,28 +17,46 @@ import re
 from datetime import date
 import uwuify
 
+
+########Fixed the input of the file to the pandas df. Consequently broke the upload and f_lbl stuff. 
+######## It also creates an empty tkinter frame upon opening the filedialog filename popup
+######## Sorry if I don't get to fixing that anytime soon.
+# TODO: update function
+# TODO: IP address CIDR check
+# TODO: containerize this in an exe file for distro
+# TODO: bug checks
+
+
 class App(tk.Tk):
     
-    pd.set_option("display.max_columns", None)
-    pd.set_option("display.max_colwidth", None)
-    f = pd.ExcelFile('References_20220315.xlsx')
+    file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])
+    f = pd.ExcelFile(file)
+        #f = pd.ExcelFile(upload_file)
     df_dict = f.parse(sheet_name=[0, 1, 2, 3, 4, 5, 6]) # imports dictionary
-    s = list(df_dict.keys()) 
     df1, df2, df3, df4, df5, df6, df7 = list(df_dict.values())
     df1['First Binary'] = df1['First Binary'].apply(lambda x: ipaddress.ip_address(x)) 
     df1['Last Binary'] = df1['Last Binary'].apply(lambda x: ipaddress.ip_address(x))
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.max_colwidth", None)
 
     def __init__(self):
         super().__init__()
+
         self.title("Mitigation Ronin.py")
         self.geometry('1000x1200')
         #label
         self.lbl = tk.Label(self, text="Welcome to Mitigation Ronin!", font=('Arial', 14))
         self.lbl.grid(column=1, row=0, padx=10, pady=10, sticky='nswe')
+        
+        #print(self.my_str)
         self.my_str = tk.StringVar()
-        self.f_lbl = tk.Label(self, textvariable=self.my_str,bg='black', fg='lightgreen')
-        self.my_str.set("")
+        self.my_str.set("placeholder")
+        # self.my_str.set(self.file)
+
+        self.f_lbl = tk.Label(self, textvariable=tk.StringVar().set(self.file), bg='black', fg='lightgreen')
         self.f_lbl.grid(column=1, row=1, sticky='nse', padx=140)
+        self.tk_headers = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]
+        
         #text boxes
         ######################################## IP box #############################################################
         self.txt_ip = scrolledtext.ScrolledText(self, wrap=tk.WORD,
@@ -121,7 +139,9 @@ class App(tk.Tk):
         self.sub_sheet.set_sheet_data([list(range(0,10))])
         self.sub_sheet.create_header_checkbox(c=0,
                                               checked = False,
-                                              check_function = self.sub_sheet.click_checkbox(r="all", c=0, checked=False),
+                                              check_function = self.sub_sheet.click_checkbox(r="all", 
+                                                                                             c=0, 
+                                                                                             checked=False),
                                               text = "Mitigate")
         self.sub_sheet.highlight_columns(columns=[0], bg=None, fg="white", overwrite = True)
         self.sub_sheet.create_checkbox(c=0,
@@ -159,13 +179,16 @@ class App(tk.Tk):
 
         self.sub_sheet.grid(column=1, row=11, padx=15, pady=5, sticky="nswe")
         
+    
     def upload_file(self):
-        file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])#, ("All Files"), ("*.*")])
-        if file:
-            self.my_str.set(file)
-            return file
+        #file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])#, ("All Files"), ("*.*")])
+        if self.file:
+            self.my_str.set(self.file)
+            return self.file
         else:
+            messagebox.showerror("Error", "File not selected")
             print("File not chosen.")
+            return "File not chosen"
         
 
     # This gives a pop-up of the results of the mitigation search.
@@ -175,8 +198,8 @@ class App(tk.Tk):
         self.sheet.set_sheet_data([i for i in self.ip_search().values.tolist()])
         self.sub_sheet.set_sheet_data([i for i in self.ip_mit.values.tolist()])
 
-        self.sheet.headers(newheaders = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        self.sub_sheet.headers(newheaders=['Mitigate', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        self.sheet.headers(newheaders = self.tk_headers)
+        self.sub_sheet.headers(newheaders=self.tk_headers)
         self.sub_sheet.create_checkbox(r="all",
                                        c=0,
                                        checked = False,
@@ -190,8 +213,8 @@ class App(tk.Tk):
             self.sheet.set_sheet_data([d for d in self.dom_search().values.tolist()])
             self.sub_sheet.set_sheet_data([n for n in self.df_mit.values.tolist()])
             ## I think I can create a function in the header checkbox to check all for the other boxes...
-            self.sheet.headers(newheaders = ['Mitigated', 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
-            self.sub_sheet.headers(newheaders = ['Mitigate', 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
+            self.sheet.headers(newheaders = self.tk_headers)
+            self.sub_sheet.headers(newheaders = self.tk_headers)
             self.sub_sheet.create_checkbox(r="all",
                                            c=0,
                                            checked = False,
@@ -228,12 +251,21 @@ class App(tk.Tk):
         
         ######################################  This seems to work ###############################
     def ip_search(self):
-        ips = self.txt_ip.get("1.0","end-1c").splitlines()
-        ips = [i.strip() for i in ips]
+        #input ip addresses
+        ips = self.txt_ip.get("1.0","end-1c").splitlines() #split lines of input
+        ips = [i.strip() for i in ips] # clean up in case of spaces
+        try:
+            for i in ips:
+                print(ipaddress.ip_network(i))
+                print(ipaddress.ip_address(i))
+        except ValueError:
+            pass
+            
+        # df column names
         self.ip_mit = pd.DataFrame(columns=['Mitigate', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
         try:
             #ips = [f"{i}/32" for i in ips if not ipaddress.ip_address(i)] This isn't working
-            ip_list = self.df1['CIDR'].tolist()
+            ip_list = self.df1['CIDR'].tolist() # mitigation list of IP's
             self.not_ips = [i for i in ips if i not in ip_list]
             self.df_ref = self.df1.loc[self.df1["CIDR"].isin(ips)]
             self.ip_mit['CIDR'] = self.not_ips
@@ -279,6 +311,7 @@ if __name__ == "__main__":
     app.mainloop()
     
     
+
 
 
 
