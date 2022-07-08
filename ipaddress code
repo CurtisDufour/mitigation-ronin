@@ -1,0 +1,62 @@
+import ipaddress
+import pandas as pd
+
+
+ip_input= ['192.168.0.1', 
+           "1.2.10.1",
+           '1.0.242.174',
+           '1.0.247.98',
+           '1.0.2.4',
+           '2001:0db8:85a3:0000:0000::2:7335']
+
+    
+ip_input = [ipaddress.ip_address(i) for i in ip_input]
+
+#print([i for i in ip_input])
+     
+net_list = ["1.0.1.0/24",
+"1.0.2.0/23",
+"1.0.8.0/21",
+"1.0.32.0/19",
+"1.0.128.0/19",
+"1.0.157.168/32",
+"1.0.173.170/32",
+"1.0.192.0/19",
+"1.0.224.0/19",
+"1.0.242.175/32",
+"1.0.247.102/32",
+"1.0.248.0/21",
+"1.1.0.0/24",
+"1.1.1.4/32",
+"1.1.2.0/23",
+"1.1.4.0/22",
+"1.1.8.0/21",
+"1.1.16.0/20",
+"1.1.32.0/19",
+"1.1.137.20/32",
+"1.1.152.237/32"
+]
+net_list = [ipaddress.ip_interface(i).network for i in net_list]
+#print(net_list)
+# This is a list of a list
+#I need 
+#print([len([n.hosts()]) for n in net_list])
+
+#ipaddress.ip_address(ip_input[4]) in ipaddress.ip_interface(net_list[0]).network
+
+#for x in list(net_list[0].hosts()):
+#print(list(enumerate(net_list)))
+#print(list(enumerate([list(n.hosts()) for n in net_list])))
+ip_mit= []
+for index, i in enumerate([list(n.hosts()) for n in net_list]):
+    for j in range(0, len(ip_input)):
+        if ip_input[j] in i:
+             print(f"{ip_input[j]} appeared in a search against {ipaddress.ip_interface(i[index])}")
+             ip_mit.append(str(ip_input[j]))
+        else:
+            #print(f"{ip_input[j]} is not currently mitigated.")
+            continue
+    else:
+        continue
+    
+print(ip_mit)
