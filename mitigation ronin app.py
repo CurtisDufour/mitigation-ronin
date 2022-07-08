@@ -41,24 +41,27 @@ class App(tk.Tk):
 
     def __init__(self):
         super().__init__()
-
+         # Title and geometry
+         
         self.title("Mitigation Ronin.py")
         self.geometry('1000x1200')
         #label
         self.lbl = tk.Label(self, text="Welcome to Mitigation Ronin!", font=('Arial', 14))
         self.lbl.grid(column=1, row=0, padx=10, pady=10, sticky='nswe')
         
+        # This is all broken
         #print(self.my_str)
         self.my_str = tk.StringVar()
         self.my_str.set("placeholder")
         # self.my_str.set(self.file)
-
-        self.f_lbl = tk.Label(self, textvariable=tk.StringVar().set(self.file), bg='black', fg='lightgreen')
+        
+        # Label for chosen reference sheet 
+        self.f_lbl = tk.Label(self, textvariable="reference sheet loaded", bg='black', fg='lightgreen')
         self.f_lbl.grid(column=1, row=1, sticky='nse', padx=140)
         self.tk_headers = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]
         
-        #text boxes
         ######################################## IP box #############################################################
+        # IP mitigation Textbox
         self.txt_ip = scrolledtext.ScrolledText(self, wrap=tk.WORD,
                                              width=40, height=5,
                                              font=("Arial", 12))
@@ -67,6 +70,7 @@ class App(tk.Tk):
         self.txt_ip.focus()
         
         ####################################### #domain box
+        # Domain Mitigation Textbox
         self.txt_dom = scrolledtext.ScrolledText(self, wrap=tk.WORD,
                                              width=40, height=5,
                                              font=("Arial", 12))
@@ -74,17 +78,21 @@ class App(tk.Tk):
         self.txt_dom.insert(tk.END, "paste your domains here: ")
         
         ######################################## #buttons# ##########################################################
+        # IP Mitigation Search
         self.ip_btn = ttk.Button(self, text="IP Mitigation") # 
         self.ip_btn.grid(column=1, row=6)
         self.ip_btn['command'] = self.clicked_ip
+        # Domain Mitigation Search
         self.dom_btn = ttk.Button(self, text="Domain Mitigation")
         self.dom_btn['command'] = self.clicked_dom
         self.dom_btn.grid(column=1, row=8)
+        #Update Reference Sheet Button
         self.update_btn = ttk.Button(self, text="Update Reference Sheet")
         self.update_btn['command'] = self.clicked_update
         self.update_btn.grid(column=1, row=12)
         self.update_btn_cache = []
-        self.upload_btn = ttk.Button(self, text='Upload Reference File')
+        #Upload Reference Sheet Button
+        self.upload_btn = ttk.Button(self, text='broken upload_file() button')
         self.upload_btn['command'] = lambda:self.upload_file()
         self.upload_btn.grid(column=1, row=1, sticky='nsw', padx=200)
         # self.uwu_btn = ttk.Button(self, text="UwU")
@@ -176,7 +184,6 @@ class App(tk.Tk):
                                          "undo",
                                          "edit_cell"))
 
-
         self.sub_sheet.grid(column=1, row=11, padx=15, pady=5, sticky="nswe")
         
     
@@ -195,6 +202,7 @@ class App(tk.Tk):
     def clicked_ip(self):
         # Data must be expressed as a list of lists...
         self.uwu_it()
+        print([type(i) for i in self.ip_input])
         self.sheet.set_sheet_data([i for i in self.ip_search().values.tolist()])
         self.sub_sheet.set_sheet_data([i for i in self.ip_mit.values.tolist()])
 
@@ -235,44 +243,53 @@ class App(tk.Tk):
         ### need to write this function to tie to update button for reference sheet
         pass
     
-        ############################################ I think this is broken ################################
-    # def ip_mit(self):
-    #     df_mit = pd.DataFrame()
-    #     ips = self.txt_ip.get("1.0","end-1c").splitlines()
-    #     try:
-    #         badguys = [i for i in ips if i in list(str(IPv4Network(self.df1["CIDR"]).hosts()))]
-    #         print(badguys)
-    #         df_mit.append(self.df1.loc[self.df1.CIDR == str([i for i in badguys])])
-    #         return df_mit
-            
-    #     except:
-    #         df_mit.append(self.df1.loc[self.df1.CIDR== "Not there"])
-    #         return df_mit
         
         ######################################  This seems to work ###############################
     def ip_search(self):
         #input ip addresses
-        ips = self.txt_ip.get("1.0","end-1c").splitlines() #split lines of input
-        ips = [i.strip() for i in ips] # clean up in case of spaces
-        try:
-            for i in ips:
-                print(ipaddress.ip_network(i))
-                print(ipaddress.ip_address(i))
-        except ValueError:
+        ip_input = self.txt_ip.get("1.0","end-1c").splitlines() #split lines of input
+        self.ip_input = [i.strip() for i in ip_input] # clean up in case of spaces
+        for i in self.ip_input:
+            try:
+                i = ipaddress.ip_address(i)
+            except ValueError:
+                i = i
+        else:
             pass
+        
+        # This should make each ip in ips list an ipnetwork object.
+        # If it doesn't already have a cidr notation, it assumes /32
+        # for i in ips:
             
-        # df column names
+            # if ipaddress.ip_interface(i):
+            #     i = ipaddress.ip_interface(i)
+            #     print(i)
+            #     continue
+            # elif ipaddress.ip_address(i):
+            #     i = ipaddress.ip_address(i)
+            #     print(i)
+            #     #i = ipaddress.ip_interface(f"{i}/32").network
+            # else:
+            #     print("IP dork thing")
+            #     pass
+        ip_list = self.df1['CIDR'].tolist() # mitigation list of IP's
+        ip_list = [ipaddress.ip_interface(i).network for i in ip_list]
+        # OK IP list is now a list of ip networks
+        #print([str(i) for i in ip_list[:4:]])
+        # compare ip_input to list of ranges in ip_list
+        
+            
+        # df instantiation and column names
         self.ip_mit = pd.DataFrame(columns=['Mitigate', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
         try:
-            #ips = [f"{i}/32" for i in ips if not ipaddress.ip_address(i)] This isn't working
-            ip_list = self.df1['CIDR'].tolist() # mitigation list of IP's
-            self.not_ips = [i for i in ips if i not in ip_list]
-            self.df_ref = self.df1.loc[self.df1["CIDR"].isin(ips)]
+
+            self.not_ips = [i for i in self.ip_input if i not in ip_list]
+            self.df_ref = self.df1.loc[self.df1["CIDR"].isin(self.ip_input)]
             self.ip_mit['CIDR'] = self.not_ips
             self.df_ref.insert(0, "Mitigate", ["Mitigated" for i in range(len(self.df_ref.index))])
             return self.df_ref#self.df1.loc[self.df1["CIDR"].isin(ips)]
         except: 
-            return ValueError
+            messagebox.showerror("I am Error", f"{[i for i in self.ip_input]} encountered an error")
 
         ########################### This is successful #########################
 
@@ -291,7 +308,7 @@ class App(tk.Tk):
             self.df_ref.insert(0, "Mitigate", ["Mitigated" for i in range(len(self.df_ref.index))])
             return self.df_ref
         except:
-            return ValueError
+            messagebox.showerror("Error", f"{[i for i in doms]} is not a valid domain.")
 
     # Trying to write a function to tie to header checkbox
     def check_all(self, r="all", c=0, checked=False):
@@ -310,6 +327,10 @@ if __name__ == "__main__":
     app = App()
     app.mainloop()
     
+    
+
+
+
     
 
 
