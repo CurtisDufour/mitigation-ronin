@@ -257,28 +257,12 @@ class App(tk.Tk):
         else:
             pass
         
-        # This should make each ip in ips list an ipnetwork object.
-        # If it doesn't already have a cidr notation, it assumes /32
-        # for i in ips:
-            
-            # if ipaddress.ip_interface(i):
-            #     i = ipaddress.ip_interface(i)
-            #     print(i)
-            #     continue
-            # elif ipaddress.ip_address(i):
-            #     i = ipaddress.ip_address(i)
-            #     print(i)
-            #     #i = ipaddress.ip_interface(f"{i}/32").network
-            # else:
-            #     print("IP dork thing")
-            #     pass
         ip_list = self.df1['CIDR'].tolist() # mitigation list of IP's
         ip_list = [ipaddress.ip_interface(i).network for i in ip_list]
         # OK IP list is now a list of ip networks
         #print([str(i) for i in ip_list[:4:]])
         # compare ip_input to list of ranges in ip_list
         
-            
         # df instantiation and column names
         self.ip_mit = pd.DataFrame(columns=['Mitigate', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
         try:
