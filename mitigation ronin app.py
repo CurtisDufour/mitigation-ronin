@@ -10,6 +10,7 @@ from tkinter import scrolledtext
 from tkinter import messagebox
 from tkinter import filedialog
 from tkinter.filedialog import askopenfile
+import openpyxl
 import pandas as pd
 import ipaddress
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
@@ -31,11 +32,10 @@ class App(tk.Tk):
     
     file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])
     f = pd.ExcelFile(file)
-        #f = pd.ExcelFile(upload_file)
     df_dict = f.parse(sheet_name=[0, 1, 2, 3, 4, 5, 6]) # imports dictionary
     df1, df2, df3, df4, df5, df6, df7 = list(df_dict.values())
-    df1['First Binary'] = df1['First Binary'].apply(lambda x: ipaddress.ip_address(x)) 
-    df1['Last Binary'] = df1['Last Binary'].apply(lambda x: ipaddress.ip_address(x))
+    df1['First Binary'] = df1['First Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
+    df1['Last Binary'] = df1['Last Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     pd.set_option("display.max_columns", None)
     pd.set_option("display.max_colwidth", None)
 
@@ -59,7 +59,8 @@ class App(tk.Tk):
         self.f_lbl = tk.Label(self, textvariable="reference sheet loaded", bg='black', fg='lightgreen')
         self.f_lbl.grid(column=1, row=1, sticky='nse', padx=140)
         self.tk_headers = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]
-        
+        self.dom_headers = ["Mitigated", "Domain", "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"]
+        self.dommit_headers = ["Mitigate", "Whitelist", "Domain", "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"]
         ######################################## IP box #############################################################
         # IP mitigation Textbox
         self.txt_ip = scrolledtext.ScrolledText(self, wrap=tk.WORD,
@@ -108,7 +109,7 @@ class App(tk.Tk):
                                    all_columns_displayed=True,
                                    show_y_scrollbar=True)
         self.sheet.change_theme("dark")
-        self.sheet.set_sheet_data(self.ip_search())
+        self.sheet.set_sheet_data([[i for i in range(0,10)] for i in range(0, 4)])
         self.sheet.enable_bindings(("single_select", #"single_select" or "toggle_select"
                                          "drag_select",   #enables shift click selection as well
                                          "column_drag_and_drop",
@@ -135,6 +136,8 @@ class App(tk.Tk):
                                          "undo",
                                          "edit_cell"))
         self.sheet.grid(column=1, row=10, padx=15,pady=5, sticky="nswe")
+        self.sheet.headers(newheaders = self.dom_headers)
+       
         ############################### non-mitigated domains; add 
         self.sub_sheet = tksheet.Sheet(self, 
                                    show_table=True,
@@ -144,7 +147,9 @@ class App(tk.Tk):
                                    align="c",
                                    all_columns_displayed=True,
                                    show_y_scrollbar=True)
-        self.sub_sheet.set_sheet_data([list(range(0,10))])
+        self.sub_sheet.set_sheet_data([[i for i in "mitigation"],
+                                      [i for i in "ronin"]])
+        self.sub_sheet.headers(newheaders=self.dom_headers)
         self.sub_sheet.create_header_checkbox(c=0,
                                               checked = False,
                                               check_function = self.sub_sheet.click_checkbox(r="all", 
@@ -157,6 +162,7 @@ class App(tk.Tk):
                                        checked = False,
                                        state = "normal",
                                        text = "Checkbox")
+        
         self.sub_sheet.change_theme("dark")
         self.sub_sheet.enable_bindings(("single_select", #"single_select" or "toggle_select"
                                          "drag_select",   #enables shift click selection as well
@@ -186,7 +192,23 @@ class App(tk.Tk):
 
         self.sub_sheet.grid(column=1, row=11, padx=15, pady=5, sticky="nswe")
         
-    
+    def header_dropdown_selected(self, event = None):
+        #breakpoint()
+        hdrs = self.sheet.headers()
+        # this function is run before header cell data is set by dropdown selection
+        # so we have to get the new value from the event
+        hdrs[event.column] = event.text
+        print(hdrs)
+        if all(dd == "Block" for dd in hdrs):
+            print([dd for dd in hdrs])
+            self.sub_sheet.set_sheet_data([n for n in self.df_mit.values.tolist()],
+                                      reset_col_positions = False,
+                                      reset_row_positions = False)
+        else:
+            self.sub_sheet.set_sheet_data([row for row in [n for n in self.df_mit.values.tolist()] if all(row[c] == e or e == "Block" for c, e in enumerate(hdrs))],
+                                      reset_col_positions = False,
+                                      reset_row_positions = False)
+        
     def upload_file(self):
         #file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])#, ("All Files"), ("*.*")])
         if self.file:
@@ -200,80 +222,90 @@ class App(tk.Tk):
 
     # This gives a pop-up of the results of the mitigation search.
     def clicked_ip(self):
+        
         # Data must be expressed as a list of lists...
         self.uwu_it()
-        print([type(i) for i in self.ip_input])
+        #print([type(i) for i in self.ip_input])
         self.sheet.set_sheet_data([i for i in self.ip_search().values.tolist()])
         self.sub_sheet.set_sheet_data([i for i in self.ip_mit.values.tolist()])
 
-        self.sheet.headers(newheaders = self.tk_headers)
-        self.sub_sheet.headers(newheaders=self.tk_headers)
+        self.sheet.headers(newheaders = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        self.sub_sheet.headers(newheaders=['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
         self.sub_sheet.create_checkbox(r="all",
                                        c=0,
                                        checked = False,
                                        text = "Checkbox")
-        self.sub_sheet.create_header_checkbox(c=0, text="Mitigate", checked=True, check_function=self.check_all)
-
+        self.sub_sheet.create_header_checkbox(c=0, text="Mitigate", checked=False, check_function=self.check_all)
         
     def clicked_dom(self):
         try:
             # pandas data has to be expressed as list of lists
-            self.sheet.set_sheet_data([d for d in self.dom_search().values.tolist()])
+            self.sheet.set_sheet_data([]+[d for d in self.dom_search().values.tolist()])
             self.sub_sheet.set_sheet_data([n for n in self.df_mit.values.tolist()])
             ## I think I can create a function in the header checkbox to check all for the other boxes...
-            self.sheet.headers(newheaders = self.tk_headers)
-            self.sub_sheet.headers(newheaders = self.tk_headers)
+            self.sheet.headers(newheaders = self.dom_headers)
+            self.sub_sheet.headers(newheaders = self.dommit_headers)
+            self.sub_sheet.create_header_checkbox(c=0, text="Mitigate", checked=False, check_function=self.check_all)
             self.sub_sheet.create_checkbox(r="all",
                                            c=0,
                                            checked = False,
                                            text = "Checkbox")
-            self.sub_sheet.create_header_checkbox(c=0, text="Mitigate", checked=True, check_function=self.check_all)
+            
+            self.sub_sheet.create_header_dropdown(c=1,
+                                                  values = ["Block", "Whitelist", "Unblock"],
+                                                  set_value= "Whitelist",
+                                                  selection_function= self.header_dropdown_selected)
+            
         except:
             self.sheet.set_sheet_data([f"{d} returns no results" for d in self.dom_search.values.tolist()][0])
-        #showinfo(title="testing",
-        #         message="this is a test of the domain button")
         
     def clicked_update(self):
         self.uwu_it()
-        # append 
-        for i in self.update_btn_cache:
-            pass
-        else:
-            pass
-        ### need to write this function to tie to update button for reference sheet
-        pass
-    
-        
+        today = date.today()
+        save_date = today.strftime("%Y%m%d")
+        with pd.ExcelWriter(App.f) as writer:
+            pd.DataFrame(self.sub_sheet.get_cell_data()).to_excel(writer, sheet_name=["BadBoyIPs"])
+   
+
         ######################################  This seems to work ###############################
     def ip_search(self):
         #input ip addresses
         ip_input = self.txt_ip.get("1.0","end-1c").splitlines() #split lines of input
-        self.ip_input = [i.strip() for i in ip_input] # clean up in case of spaces
-        for i in self.ip_input:
-            try:
-                i = ipaddress.ip_address(i)
-            except ValueError:
-                i = i
-        else:
-            pass
-        
-        ip_list = self.df1['CIDR'].tolist() # mitigation list of IP's
-        ip_list = [ipaddress.ip_interface(i).network for i in ip_list]
-        # OK IP list is now a list of ip networks
-        #print([str(i) for i in ip_list[:4:]])
-        # compare ip_input to list of ranges in ip_list
-        
-        # df instantiation and column names
-        self.ip_mit = pd.DataFrame(columns=['Mitigate', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        try:
+        ip_input = [i.strip() for i in ip_input] # clean up in case of spaces
+        for ip in ip_input:
+            if ip_input[0] == "paste your IP's here: ":
+                continue
+            else:
+                pass
 
-            self.not_ips = [i for i in self.ip_input if i not in ip_list]
-            self.df_ref = self.df1.loc[self.df1["CIDR"].isin(self.ip_input)]
-            self.ip_mit['CIDR'] = self.not_ips
-            self.df_ref.insert(0, "Mitigate", ["Mitigated" for i in range(len(self.df_ref.index))])
-            return self.df_ref#self.df1.loc[self.df1["CIDR"].isin(ips)]
-        except: 
-            messagebox.showerror("I am Error", f"{[i for i in self.ip_input]} encountered an error")
+        cidr_list = self.df1['CIDR'].tolist()
+        mitigations = []
+        self.unmitigated = []
+        cidr_resp = []
+        for cidr in cidr_list:
+            for ip in ip_input:
+                if ipaddress.ip_address(ip) in ipaddress.ip_interface(cidr).network and ip not in mitigations:
+                    #print(f"{ip} is in {ipaddress.ip_interface(cidr).network}")
+                    #print(ipaddress.ip_interface(cidr).network[0])
+                    #print(ipaddress.ip_interface(cidr).network[-1])
+                    cidr_resp.append(cidr)
+                    mitigations.append(ip)
+                    continue
+                elif ip not in self.unmitigated:
+                    self.unmitigated.append(ip)
+                    continue
+            
+        self.unmitigated = [x for x in self.unmitigated if x not in mitigations]      
+        self.df_ref = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        self.ip_mit = pd.DataFrame(columns=['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        self.df_ref = self.df1.loc[self.df1['CIDR'].isin(cidr_resp)]
+        self.df_ref.insert(0, 'Mitigated', pd.Series(mitigations))
+        self.ip_mit['CIDR'] = pd.Series(self.unmitigated, index=list(range(0, len(self.unmitigated))))
+        
+        #self.df_ref = self.df1.loc[self.df1['CIDR'].isin(mitigations)]
+        #self.ip_mit['CIDR'] = [i for i in mitigations]#[i for i in ip_input if i not in cidr_list]
+        #self.df_ref.insert([0, "Mitigated", ["mitigated" for i in range(len(self.df_ref.index))]])
+        return self.df_ref
 
         ########################### This is successful #########################
 
@@ -281,21 +313,20 @@ class App(tk.Tk):
         # create list from input box
         doms = self.txt_dom.get("1.0", "end-1c").splitlines()
         doms = [i.strip() for i in doms] # input validations
-        self.df_mit = pd.DataFrame(columns=['Mitigate', 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
+        self.df_mit = pd.DataFrame(columns=['Mitigate', "Whitelist", 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
         
         try:
             #find matches in reference sheet that match self.doms
             dom_list = self.df5["Domain"].tolist()
-            self.not_doms = [i for i in doms if i not in dom_list]
             self.df_ref = self.df5.loc[self.df5["Domain"].isin(doms)]
-            self.df_mit["Domain"] = self.not_doms
+            self.df_mit["Domain"] = [i for i in doms if i not in dom_list]
             self.df_ref.insert(0, "Mitigate", ["Mitigated" for i in range(len(self.df_ref.index))])
             return self.df_ref
         except:
             messagebox.showerror("Error", f"{[i for i in doms]} is not a valid domain.")
 
     # Trying to write a function to tie to header checkbox
-    def check_all(self, r="all", c=0, checked=False):
+    def check_all(self, r="all", c=0, checked=True):
         self.sub_sheet.create_checkbox(r="all",
                                    c=0,      
                                    checked=True, 
@@ -312,6 +343,9 @@ if __name__ == "__main__":
     app.mainloop()
     
     
+
+
+
 
 
 
