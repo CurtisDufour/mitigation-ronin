@@ -5,15 +5,16 @@ Created on Fri May 27 13:06:05 2022
 """
 import tkinter as tk
 import tksheet
+from urllib.parse import urlparse
 from tkinter import ttk
 from tkinter import scrolledtext
 from tkinter import messagebox
 from tkinter import filedialog
 from tkinter.filedialog import askopenfile
 import openpyxl
+from openpyxl.utils import datetime
 import pandas as pd
 import ipaddress
-from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
 import re
 from datetime import date
 import uwuify
@@ -34,6 +35,10 @@ class App(tk.Tk):
     f = pd.ExcelFile(file)
     df_dict = f.parse(sheet_name=[0, 1, 2, 3, 4, 5, 6]) # imports dictionary
     df1, df2, df3, df4, df5, df6, df7 = list(df_dict.values())
+    # df2 is the whitelist
+    # df3 is the army ip list
+    # df6 is domain whitelist
+    #df1['Date Issued'] = df1['']
     df1['First Binary'] = df1['First Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     df1['Last Binary'] = df1['Last Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     pd.set_option("display.max_columns", None)
@@ -44,10 +49,14 @@ class App(tk.Tk):
          # Title and geometry
          
         self.title("Mitigation Ronin.py")
-        self.geometry('1000x1200')
+        self.geometry('1000x1600')
+        self.config(bg='#242526')
         #label
-        self.lbl = tk.Label(self, text="Welcome to Mitigation Ronin!", font=('Arial', 14))
-        self.lbl.grid(column=1, row=0, padx=10, pady=10, sticky='nswe')
+        self.lbl = tk.Label(self, text="Welcome to Mitigation Ronin!", 
+                            font=('Arial', 14), 
+                            bg='#050505', 
+                            fg='lightgray')
+        self.lbl.grid(column=1, row=0, padx=10, pady=10, sticky='ns')
         
         # This is all broken
         #print(self.my_str)
@@ -59,6 +68,7 @@ class App(tk.Tk):
         self.f_lbl = tk.Label(self, textvariable="reference sheet loaded", bg='black', fg='lightgreen')
         self.f_lbl.grid(column=1, row=1, sticky='nse', padx=140)
         self.tk_headers = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]
+        self.ipmit_headers = ['Mitigated', 'Whitelist', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]
         self.dom_headers = ["Mitigated", "Domain", "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"]
         self.dommit_headers = ["Mitigate", "Whitelist", "Domain", "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"]
         ######################################## IP box #############################################################
@@ -80,22 +90,35 @@ class App(tk.Tk):
         
         ######################################## #buttons# ##########################################################
         # IP Mitigation Search
-        self.ip_btn = ttk.Button(self, text="IP Mitigation") # 
-        self.ip_btn.grid(column=1, row=6)
+        self.ip_btn = tk.Button(self, text="IP Mitigation") 
+        self.ip_btn.bind("<Enter>", func=lambda e: self.ip_btn.config(background='#00FF00'))
+        self.ip_btn.bind("<Leave>", func=lambda e: self.ip_btn.config(background='gray'))
+        self.ip_btn.grid(column=1, row=6, sticky='ns', padx=600)
         self.ip_btn['command'] = self.clicked_ip
         # Domain Mitigation Search
-        self.dom_btn = ttk.Button(self, text="Domain Mitigation")
+        self.dom_btn = tk.Button(self, text="Domain Mitigation")
+        self.dom_btn.bind("<Enter>", func=lambda e: self.dom_btn.config(background='#00FF00'))
+        self.dom_btn.bind("<Leave>", func=lambda e: self.dom_btn.config(background='gray'))
         self.dom_btn['command'] = self.clicked_dom
-        self.dom_btn.grid(column=1, row=8)
+        self.dom_btn.grid(column=1, row=8, sticky='ns', padx=500)
         #Update Reference Sheet Button
-        self.update_btn = ttk.Button(self, text="Update Reference Sheet")
+        self.update_btn = tk.Button(self, text="Update Reference Sheet")
+        self.update_btn.bind("<Enter>", func=lambda e: self.update_btn.config(background='#00FF00'))
+        self.update_btn.bind("<Leave>", func=lambda e: self.update_btn.config(background='gray'))
         self.update_btn['command'] = self.clicked_update
-        self.update_btn.grid(column=1, row=12)
+        self.update_btn.grid(column=1, row=13, sticky='ns', padx=500)
         self.update_btn_cache = []
         #Upload Reference Sheet Button
-        self.upload_btn = ttk.Button(self, text='broken upload_file() button')
-        self.upload_btn['command'] = lambda:self.upload_file()
-        self.upload_btn.grid(column=1, row=1, sticky='nsw', padx=200)
+        self.upload_btn = tk.Button(self, text='broken upload_file() button')
+        self.upload_btn.bind("<Enter>", func=lambda e: self.upload_btn.config(background='#00FF00'))
+        self.upload_btn.bind("<Leave>", func=lambda e: self.upload_btn.config(background='gray'))
+        self.upload_btn['command'] = self.upload_file()
+        self.upload_btn.grid(column=1, row=1, sticky='ns', padx=500)
+        self.whitelist_btn = tk.Button(self, text='Check for whitelist')
+        self.whitelist_btn.bind("<Enter>", func=lambda e: self.whitelist_btn.config(background='#00FF00'))
+        self.whitelist_btn.bind("<Leave>", func=lambda e: self.whitelist_btn.config(background='gray'))
+        self.whitelist_btn['command'] = self.whitelst_check()
+        self.whitelist_btn.grid(column=1, row=12, sticky='ns')
         # self.uwu_btn = ttk.Button(self, text="UwU")
         # self.uwu_btn['command'] = self.uwu_it
         # self.uwu_btn.grid(column=2, row=12)
@@ -109,7 +132,8 @@ class App(tk.Tk):
                                    all_columns_displayed=True,
                                    show_y_scrollbar=True)
         self.sheet.change_theme("dark")
-        self.sheet.set_sheet_data([[i for i in range(0,10)] for i in range(0, 4)])
+        self.sheet.set_sheet_data([[i for i in "mitigation"],
+                                      [i for i in "ronin"]])
         self.sheet.enable_bindings(("single_select", #"single_select" or "toggle_select"
                                          "drag_select",   #enables shift click selection as well
                                          "column_drag_and_drop",
@@ -135,7 +159,7 @@ class App(tk.Tk):
                                          "delete",
                                          "undo",
                                          "edit_cell"))
-        self.sheet.grid(column=1, row=10, padx=15,pady=5, sticky="nswe")
+        self.sheet.grid(column=1, row=10, padx=30,pady=5, sticky="nswe")
         self.sheet.headers(newheaders = self.dom_headers)
        
         ############################### non-mitigated domains; add 
@@ -149,19 +173,24 @@ class App(tk.Tk):
                                    show_y_scrollbar=True)
         self.sub_sheet.set_sheet_data([[i for i in "mitigation"],
                                       [i for i in "ronin"]])
-        self.sub_sheet.headers(newheaders=self.dom_headers)
+        self.sub_sheet.headers(newheaders=self.ipmit_headers)
         self.sub_sheet.create_header_checkbox(c=0,
                                               checked = False,
                                               check_function = self.sub_sheet.click_checkbox(r="all", 
                                                                                              c=0, 
                                                                                              checked=False),
                                               text = "Mitigate")
-        self.sub_sheet.highlight_columns(columns=[0], bg=None, fg="white", overwrite = True)
+        self.sub_sheet.highlight_columns(columns=[0, 1], bg=None, fg="white", overwrite = True)
         self.sub_sheet.create_checkbox(c=0,
                                        r="all",
                                        checked = False,
                                        state = "normal",
                                        text = "Checkbox")
+        self.sub_sheet.create_checkbox(c=1,
+                                       r="all",
+                                       checked = False,
+                                       state = "normal",
+                                       text = "Whitelist")
         
         self.sub_sheet.change_theme("dark")
         self.sub_sheet.enable_bindings(("single_select", #"single_select" or "toggle_select"
@@ -189,8 +218,7 @@ class App(tk.Tk):
                                          "delete",
                                          "undo",
                                          "edit_cell"))
-
-        self.sub_sheet.grid(column=1, row=11, padx=15, pady=5, sticky="nswe")
+        self.sub_sheet.grid(column=1, row=11, padx=30, pady=5, sticky="nswe")
         
     def header_dropdown_selected(self, event = None):
         #breakpoint()
@@ -198,7 +226,7 @@ class App(tk.Tk):
         # this function is run before header cell data is set by dropdown selection
         # so we have to get the new value from the event
         hdrs[event.column] = event.text
-        print(hdrs)
+        #print(hdrs)
         if all(dd == "Block" for dd in hdrs):
             print([dd for dd in hdrs])
             self.sub_sheet.set_sheet_data([n for n in self.df_mit.values.tolist()],
@@ -225,22 +253,25 @@ class App(tk.Tk):
         
         # Data must be expressed as a list of lists...
         self.uwu_it()
-        #print([type(i) for i in self.ip_input])
         self.sheet.set_sheet_data([i for i in self.ip_search().values.tolist()])
         self.sub_sheet.set_sheet_data([i for i in self.ip_mit.values.tolist()])
 
         self.sheet.headers(newheaders = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        self.sub_sheet.headers(newheaders=['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        self.sub_sheet.headers(newheaders=['Mitigated', 'Whitelist', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
         self.sub_sheet.create_checkbox(r="all",
                                        c=0,
                                        checked = False,
                                        text = "Checkbox")
         self.sub_sheet.create_header_checkbox(c=0, text="Mitigate", checked=False, check_function=self.check_all)
+        self.sub_sheet.create_checkbox(r="all",
+                                       c=1,
+                                       checked=False,
+                                       text="Whitelist")
         
     def clicked_dom(self):
         try:
             # pandas data has to be expressed as list of lists
-            self.sheet.set_sheet_data([]+[d for d in self.dom_search().values.tolist()])
+            self.sheet.set_sheet_data([d for d in self.dom_search().values.tolist()])
             self.sub_sheet.set_sheet_data([n for n in self.df_mit.values.tolist()])
             ## I think I can create a function in the header checkbox to check all for the other boxes...
             self.sheet.headers(newheaders = self.dom_headers)
@@ -250,6 +281,11 @@ class App(tk.Tk):
                                            c=0,
                                            checked = False,
                                            text = "Checkbox")
+            self.sub_sheet.create_checkbox(c=1,
+                                           r="all",
+                                           checked = False,
+                                           state = "normal",
+                                           text = "Whitelist")
             
             self.sub_sheet.create_header_dropdown(c=1,
                                                   values = ["Block", "Whitelist", "Unblock"],
@@ -258,6 +294,8 @@ class App(tk.Tk):
             
         except:
             self.sheet.set_sheet_data([f"{d} returns no results" for d in self.dom_search.values.tolist()][0])
+        #showinfo(title="testing",
+        #         message="this is a test of the domain button")
         
     def clicked_update(self):
         self.uwu_it()
@@ -265,10 +303,16 @@ class App(tk.Tk):
         save_date = today.strftime("%Y%m%d")
         with pd.ExcelWriter(App.f) as writer:
             pd.DataFrame(self.sub_sheet.get_cell_data()).to_excel(writer, sheet_name=["BadBoyIPs"])
+         # We need to use excelwriter here
+        # append 
+       # print(self.sub_sheet.get_sheet_data())
+        #self.df_update = pd.concat([App.f, pd.DataFrame(self.sub_sheet.get_sheet_data())])
+        #self.df_update.to_excel(f"References_{save_date}.xlsx") 
    
 
         ######################################  This seems to work ###############################
     def ip_search(self):
+        #breakpoint()
         #input ip addresses
         ip_input = self.txt_ip.get("1.0","end-1c").splitlines() #split lines of input
         ip_input = [i.strip() for i in ip_input] # clean up in case of spaces
@@ -295,16 +339,14 @@ class App(tk.Tk):
                     self.unmitigated.append(ip)
                     continue
             
-        self.unmitigated = [x for x in self.unmitigated if x not in mitigations]      
-        self.df_ref = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        self.unmitigated = [x for x in self.unmitigated if x not in mitigations]
         self.ip_mit = pd.DataFrame(columns=['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        self.ip_mit['CIDR'] = pd.Series(self.unmitigated, index=list(range(0, len(self.unmitigated))))
+        self.ip_mit.insert(1, 'Whitelist', [i for i in list(range(0, len(self.unmitigated)))])
+        self.df_ref = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
         self.df_ref = self.df1.loc[self.df1['CIDR'].isin(cidr_resp)]
         self.df_ref.insert(0, 'Mitigated', pd.Series(mitigations))
-        self.ip_mit['CIDR'] = pd.Series(self.unmitigated, index=list(range(0, len(self.unmitigated))))
-        
-        #self.df_ref = self.df1.loc[self.df1['CIDR'].isin(mitigations)]
-        #self.ip_mit['CIDR'] = [i for i in mitigations]#[i for i in ip_input if i not in cidr_list]
-        #self.df_ref.insert([0, "Mitigated", ["mitigated" for i in range(len(self.df_ref.index))]])
+
         return self.df_ref
 
         ########################### This is successful #########################
@@ -313,6 +355,7 @@ class App(tk.Tk):
         # create list from input box
         doms = self.txt_dom.get("1.0", "end-1c").splitlines()
         doms = [i.strip() for i in doms] # input validations
+        #doms = [urlparse(i).netloc for i in doms] # This onlyworks if the domain is preceded by a //
         self.df_mit = pd.DataFrame(columns=['Mitigate', "Whitelist", 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
         
         try:
@@ -324,6 +367,11 @@ class App(tk.Tk):
             return self.df_ref
         except:
             messagebox.showerror("Error", f"{[i for i in doms]} is not a valid domain.")
+            
+    def whitelst_check(self):
+        for i in 
+        #self.uwu_it()
+        pass
 
     # Trying to write a function to tie to header checkbox
     def check_all(self, r="all", c=0, checked=True):
@@ -343,6 +391,7 @@ if __name__ == "__main__":
     app.mainloop()
     
     
+
 
 
 
