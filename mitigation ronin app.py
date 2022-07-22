@@ -107,7 +107,10 @@ class App(tk.Tk):
         self.update_btn.bind("<Leave>", func=lambda e: self.update_btn.config(background='gray'))
         self.update_btn['command'] = self.clicked_update
         self.update_btn.grid(column=1, row=13, sticky='ns', padx=500)
-        self.update_btn_cache = []
+        self.update_dom_cache = {}
+        self.update_ip_cache = {}
+        self.dom_mit_res = []
+        self.ip_mit_res = []
         #Upload Reference Sheet Button
         self.upload_btn = tk.Button(self, text='broken upload_file() button')
         self.upload_btn.bind("<Enter>", func=lambda e: self.upload_btn.config(background='#00FF00'))
@@ -117,8 +120,11 @@ class App(tk.Tk):
         self.whitelist_btn = tk.Button(self, text='Check for whitelist')
         self.whitelist_btn.bind("<Enter>", func=lambda e: self.whitelist_btn.config(background='#00FF00'))
         self.whitelist_btn.bind("<Leave>", func=lambda e: self.whitelist_btn.config(background='gray'))
-        self.whitelist_btn['command'] = self.whitelst_check()
+        self.whitelist_btn['command'] = self.whitelst_check
         self.whitelist_btn.grid(column=1, row=12, sticky='ns')
+        self.whitelist_ip_cache = {}
+        self.whitelist_dom_cache = {}
+        
         # self.uwu_btn = ttk.Button(self, text="UwU")
         # self.uwu_btn['command'] = self.uwu_it
         # self.uwu_btn.grid(column=2, row=12)
@@ -253,8 +259,11 @@ class App(tk.Tk):
         
         # Data must be expressed as a list of lists...
         self.uwu_it()
-        self.sheet.set_sheet_data([i for i in self.ip_search().values.tolist()])
-        self.sub_sheet.set_sheet_data([i for i in self.ip_mit.values.tolist()])
+        self.ip_ref_res = [i for i in self.ip_search().values.tolist()]
+        self.ip_mit_res = [i for i in self.ip_mit.values.tolist()]
+        
+        self.sheet.set_sheet_data(self.ip_ref_res)
+        self.sub_sheet.set_sheet_data(self.ip_mit_res)
 
         self.sheet.headers(newheaders = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
         self.sub_sheet.headers(newheaders=['Mitigated', 'Whitelist', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
@@ -267,12 +276,15 @@ class App(tk.Tk):
                                        c=1,
                                        checked=False,
                                        text="Whitelist")
+        print(self.ip_mit_res)
         
     def clicked_dom(self):
         try:
             # pandas data has to be expressed as list of lists
-            self.sheet.set_sheet_data([d for d in self.dom_search().values.tolist()])
-            self.sub_sheet.set_sheet_data([n for n in self.df_mit.values.tolist()])
+            self.dom_ref_res = [d for d in self.dom_search().values.tolist()]
+            self.dom_mit_res = [n for n in self.df_mit.values.tolist()]
+            self.sheet.set_sheet_data(self.dom_ref_res)
+            self.sub_sheet.set_sheet_data(self.dom_mit_res)
             ## I think I can create a function in the header checkbox to check all for the other boxes...
             self.sheet.headers(newheaders = self.dom_headers)
             self.sub_sheet.headers(newheaders = self.dommit_headers)
@@ -291,6 +303,7 @@ class App(tk.Tk):
                                                   values = ["Block", "Whitelist", "Unblock"],
                                                   set_value= "Whitelist",
                                                   selection_function= self.header_dropdown_selected)
+            print(self.dom_mit_res)
             
         except:
             self.sheet.set_sheet_data([f"{d} returns no results" for d in self.dom_search.values.tolist()][0])
@@ -301,8 +314,14 @@ class App(tk.Tk):
         self.uwu_it()
         today = date.today()
         save_date = today.strftime("%Y%m%d")
-        with pd.ExcelWriter(App.f) as writer:
-            pd.DataFrame(self.sub_sheet.get_cell_data()).to_excel(writer, sheet_name=["BadBoyIPs"])
+        self.update_dom_cache = {i[2]:i for i in self.dom_mit_res}
+        print(self.update_dom_cache)
+        self.update_ip_cache = {i[4]:i for i in self.ip_mit_res}
+        print(self.update_ip_cache)
+        #for x in update_btn_cache.items():
+            
+        # with pd.ExcelWriter(App.f) as writer:
+        #     pd.DataFrame(self.sub_sheet.get_cell_data()).to_excel(writer, sheet_name=["BadBoyIPs"])
          # We need to use excelwriter here
         # append 
        # print(self.sub_sheet.get_sheet_data())
@@ -369,7 +388,10 @@ class App(tk.Tk):
             messagebox.showerror("Error", f"{[i for i in doms]} is not a valid domain.")
             
     def whitelst_check(self):
-        for i in 
+        print(self.dom_mit_res)
+        print(self.ip_mit_res)
+        self.whitelist_btn_cache = {i[2]:i for i in self.dom_mit_res}
+        print(self.whitelist_btn_cache)
         #self.uwu_it()
         pass
 
@@ -391,8 +413,6 @@ if __name__ == "__main__":
     app.mainloop()
     
     
-
-
 
 
 
