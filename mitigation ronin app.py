@@ -5,26 +5,19 @@ Created on Fri May 27 13:06:05 2022
 """
 import tkinter as tk
 import tksheet
-#from urllib.parse import urlparse
 from tkinter import scrolledtext
 from tkinter import messagebox
 from tkinter import filedialog
-#from tkinter.filedialog import askopenfile
-#import openpyxl
-#from openpyxl.utils import datetime
+from openpyxl.utils import datetime as dt
 import pandas as pd
 import ipaddress
-#import re
-from datetime import date
+from datetime import datetime
 import uwuify
 
 ########Fixed the input of the file to the pandas df. Consequently broke the upload and f_lbl stuff. 
 ######## It also creates an empty tkinter frame upon opening the filedialog filename popup
 ######## Sorry if I don't get to fixing that anytime soon.
 # TODO: update function
-# TODO: IP address CIDR check
-# TODO: containerize this in an exe file for distro
-# TODO: bug checks
 
 class App(tk.Tk):
     
@@ -35,16 +28,19 @@ class App(tk.Tk):
     # df2 is the whitelist
     # df3 is the army ip list
     # df6 is domain whitelist
-    #df1['Date Issued'] = df1['']
     df1['First Binary'] = df1['First Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     df1['Last Binary'] = df1['Last Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
+    df1['Date Issued'] = df1['Date Issued'].apply(lambda x: datetime.strftime(dt.from_excel(x), "%d-%b-%Y"))
+    df2['First Binary'] = df2['First Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
+    df2['Last Binary'] = df2['Last Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
+    #df2['Date Issued'] = df2['Date Issued'].apply(lambda x: datetime.strftime(dt.from_excel(int(x)), "%d-%b-%Y"))
+    df5['Date Issued'] = df5['Date Issued'].apply(lambda x: datetime.strftime(dt.from_excel(x), "%d-%b-%Y"))
     pd.set_option("display.max_columns", None)
     pd.set_option("display.max_colwidth", None)
 
     def __init__(self):
         super().__init__()
          # Title and geometry
-         
         self.title("Mitigation Ronin v47.py")
         self.config(bg='#242526')
         #label
@@ -53,9 +49,7 @@ class App(tk.Tk):
                             bg='#050505', 
                             fg='lightgray')
         self.lbl.grid(column=1, row=0, padx=10, pady=10, sticky='ns')
-        
         # This is all broken
-        #print(self.my_str)
         self.my_str = tk.StringVar()
         self.my_str.set("placeholder")
         self.my_str.set(self.file)
@@ -252,10 +246,6 @@ class App(tk.Tk):
                                       reset_col_positions = False,
                                       reset_row_positions = False)
             
-    
-            
-    
-            
     def check_all(self, r="all", c=0, checked=True):
         self.sub_sheet.create_checkbox(r="all",
                                        c=0,      
@@ -275,39 +265,28 @@ class App(tk.Tk):
             return "File not chosen"
         
     def whitelst_check(self):
-        #print(self.dom_mit_res)
-        #print(self.ip_mit_res)
-
         self.whitelist_btn_cache = {i[2]:i for i in self.dom_mit_res}
-        # for k,v in whitelist_btn_cache.items():
-        #     if ipaddress.ip_address(k) == True:
-        #         pass
         print(self.whitelist_btn_cache)
-        #self.uwu_it()
         pass
         
     def clicked_update(self):
         self.uwu_it()
-        today = date.today()
+        today = datetime.date.today()
         save_date = today.strftime("%Y%m%d")
         self.update_dom_cache = {i[2]:i for i in self.dom_mit_res}
         print(self.update_dom_cache)
         self.update_ip_cache = {i[4]:i for i in self.ip_mit_res}
         print(self.update_ip_cache)
         
-        
     # This gives a pop-up of the results of the mitigation search.
     def clicked_ip(self):
-        
         # Data must be expressed as a list of lists...
         self.uwu_it()
         self.ip_ref_res = [i for i in self.ip_search().values.tolist()]
-        self.ip_mit_res = [i for i in self.ip_mit.values.tolist()]
-        
         self.sheet.set_sheet_data(self.ip_ref_res)
-        self.sub_sheet.set_sheet_data(self.ip_mit_res)
-
         self.sheet.headers(newheaders = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        self.ip_mit_res = [i for i in self.ip_mit.values.tolist()]
+        self.sub_sheet.set_sheet_data(self.ip_mit_res)
         self.sub_sheet.headers(newheaders=['Mitigated', 'Whitelist', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
         self.sub_sheet.create_checkbox(r="all",
                                        c=0,
@@ -348,7 +327,7 @@ class App(tk.Tk):
                 pass
         ip_wlst = self.df2['CIDR'].tolist()
         mitigations = []
-        self.unmitigated = []
+        unmitigated = []
         cidr_resp = []
         for cidr in ip_wlst:
             for ip in ip_input:
@@ -356,36 +335,35 @@ class App(tk.Tk):
                     cidr_resp.append(cidr)
                     mitigations.append(ip)
                     continue
-                elif ip not in self.unmitigated:
-                    self.unmitigated.append(ip)
+                elif ip not in unmitigated:
+                    unmitigated.append(ip)
                     continue
-        self.unmitigated = [x for x in self.unmitigated if x not in mitigations]
+        unmitigated = [x for x in unmitigated if x not in mitigations]
+        print(cidr_resp)
         self.ip_mit = pd.DataFrame(columns=['Whitelistedted', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        self.ip_mit['CIDR'] = pd.Series(self.unmitigated, index=list(range(0, len(self.unmitigated))))
-        self.ip_mit.insert(1, 'Whitelist', [i for i in list(range(0, len(self.unmitigated)))])
-        self.df_ref = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        self.df_ref = self.df2.loc[self.df2['CIDR'].isin(cidr_resp)]
-        self.df_ref.insert(0, 'Whitelisted', pd.Series(mitigations))
+        self.ip_mit['CIDR'] = pd.Series(unmitigated, index=list(range(0, len(unmitigated))))
+        self.ip_mit.insert(1, 'Whitelist', [i for i in list(range(0, len(unmitigated)))])
         self.ip_mit.fillna('', inplace=True)
-        self.df_ref.fillna('', inplace=True)
-        return self.df_ref
+        df_ref = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        df_ref = self.df2.loc[self.df2['CIDR'].isin(cidr_resp)]
+        df_ref.insert(0, 'Whitelisted', pd.Series(mitigations), dtype='object')
+        df_ref.fillna('', inplace=True)
+        return df_ref
         
-    
     def dom_wlst_chk(self):
         # create list from input box
         doms = self.txt_dom.get("1.0", "end-1c").splitlines()
         doms = [i.strip() for i in doms] # input validations
         self.df_mit = pd.DataFrame(columns=['Mitigate', "Whitelist", 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
-        
         try:
             #find matches in reference sheet that match self.doms
             dom_list = self.df6["Domain"].tolist()
-            self.df_ref = self.df6.loc[self.df6["Domain"].isin(doms)]
             self.df_mit["Domain"] = [i for i in doms if i not in dom_list]
-            self.df_ref.insert(0, "Mitigate", ["Whitelisted" for i in range(len(self.df_ref.index))])
-            self.df_ref.fillna('', inplace=True)
             self.df_mit.fillna('', inplace=True)
-            return self.df_ref
+            df_ref = self.df6.loc[self.df6["Domain"].isin(doms)]
+            df_ref.insert(0, "Mitigate", ["Whitelisted" for i in range(len(df_ref.index))])
+            df_ref.fillna('', inplace=True)
+            return df_ref
         except:
             messagebox.showerror("Error", f"{[i for i in doms]} is not a valid domain.")
         
@@ -447,10 +425,8 @@ class App(tk.Tk):
         except:
             self.sheet.set_sheet_data([f"{d} returns no results" for d in self.dom_search.values.tolist()][0])
 
-
         ######################################  This seems to work ###############################
     def ip_search(self):
-        #breakpoint()
         #input ip addresses
         ip_input = self.txt_ip.get("1.0","end-1c").splitlines() #split lines of input
         ip_input = [i.strip() for i in ip_input] # clean up in case of spaces
@@ -459,53 +435,45 @@ class App(tk.Tk):
                 continue
             else:
                 pass
-
         cidr_list = self.df1['CIDR'].tolist()
+        print(len(cidr_list))
         mitigations = []
-        self.unmitigated = []
+        unmitigated = []
         cidr_resp = []
         for cidr in cidr_list:
             for ip in ip_input:
                 if ipaddress.ip_address(ip) in ipaddress.ip_interface(cidr).network and ip not in mitigations:
-                    #print(f"{ip} is in {ipaddress.ip_interface(cidr).network}")
-                    #print(ipaddress.ip_interface(cidr).network[0])
-                    #print(ipaddress.ip_interface(cidr).network[-1])
                     cidr_resp.append(cidr)
                     mitigations.append(ip)
                     continue
-                elif ip not in self.unmitigated:
-                    self.unmitigated.append(ip)
+                elif ip not in unmitigated:
+                    unmitigated.append(ip)
                     continue
-            
-        self.unmitigated = [x for x in self.unmitigated if x not in mitigations]
+        unmitigated = [x for x in unmitigated if x not in mitigations]
         self.ip_mit = pd.DataFrame(columns=['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        self.ip_mit['CIDR'] = pd.Series(self.unmitigated, index=list(range(0, len(self.unmitigated))))
-        self.ip_mit.insert(1, 'Whitelist', [i for i in list(range(0, len(self.unmitigated)))])
-        self.df_ref = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        self.df_ref = self.df1.loc[self.df1['CIDR'].isin(cidr_resp)]
-        self.df_ref.insert(0, 'Mitigated', pd.Series(mitigations))
+        self.ip_mit['CIDR'] = pd.Series(unmitigated, index=list(range(0, len(unmitigated))), dtype='object')
+        self.ip_mit.insert(1, 'Whitelist', [i for i in list(range(0, len(unmitigated)))])
         self.ip_mit.fillna('', inplace=True)
-        self.df_ref.fillna('', inplace=True)
-        return self.df_ref
-
-        ########################### This is successful #########################
+        df_ref = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"], dtype='object')
+        df_ref = self.df1.loc[self.df1['CIDR'].isin(cidr_resp)]
+        df_ref.insert(0, 'Mitigated', pd.Series(mitigations))
+        df_ref.fillna('', inplace=True)
+        return df_ref
 
     def dom_search(self): 
-        # create list from input box
         doms = self.txt_dom.get("1.0", "end-1c").splitlines()
         doms = [i.strip() for i in doms] # input validations
-        #doms = [urlparse(i).netloc for i in doms] # This onlyworks if the domain is preceded by a //
         self.df_mit = pd.DataFrame(columns=['Mitigate', "Whitelist", 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
         
         try:
             #find matches in reference sheet that match self.doms
             dom_list = self.df5["Domain"].tolist()
-            self.df_ref = self.df5.loc[self.df5["Domain"].isin(doms)]
             self.df_mit["Domain"] = [i for i in doms if i not in dom_list]
-            self.df_ref.insert(0, "Mitigate", ["Mitigated" for i in range(len(self.df_ref.index))])
-            self.df_ref.fillna('', inplace=True)
             self.df_mit.fillna('', inplace=True)
-            return self.df_ref
+            df_ref = self.df5.loc[self.df5["Domain"].isin(doms)]
+            df_ref.insert(0, "Mitigate", ["Mitigated" for i in range(len(df_ref.index))])
+            df_ref.fillna('', inplace=True)
+            return df_ref
         except:
             messagebox.showerror("Error", f"{[i for i in doms]} is not a valid domain.")
 
@@ -518,6 +486,11 @@ class App(tk.Tk):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+    
+    
+
+
+
     
     
 
