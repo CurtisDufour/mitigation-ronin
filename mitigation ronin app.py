@@ -5,19 +5,22 @@ Created on Fri May 27 13:06:05 2022
 """
 import tkinter as tk
 import tksheet
-from tkinter import scrolledtext
-from tkinter import messagebox
-from tkinter import filedialog
+from re import search, sub
+from tkinter import scrolledtext, ttk, messagebox, filedialog
 from openpyxl.utils import datetime as dt
+from urllib.parse import urlparse
 import pandas as pd
 import ipaddress
 from datetime import datetime
 import uwuify
+import pandastable as pt
+import os
 
 ########Fixed the input of the file to the pandas df. Consequently broke the upload and f_lbl stuff. 
 ######## It also creates an empty tkinter frame upon opening the filedialog filename popup
 ######## Sorry if I don't get to fixing that anytime soon.
 # TODO: update function
+username = os.getlogin().title().split('.')[0]
 
 class App(tk.Tk):
     
@@ -31,10 +34,13 @@ class App(tk.Tk):
     df1['First Binary'] = df1['First Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     df1['Last Binary'] = df1['Last Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     df1['Date Issued'] = df1['Date Issued'].apply(lambda x: datetime.strftime(dt.from_excel(x), "%d-%b-%Y"))
+    #list(map(lambda i: datetime.strftime(dt.from_excel(int(i)), "%d-%b-%Y"), [i.strip() for i in dates.splitlines() if i != ''])))
     df2['First Binary'] = df2['First Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     df2['Last Binary'] = df2['Last Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
-    #df2['Date Issued'] = df2['Date Issued'].apply(lambda x: datetime.strftime(dt.from_excel(int(x)), "%d-%b-%Y"))
+    df2['Date Issued'] = df2['Date Issued'].apply(lambda x: datetime.strftime(dt.from_excel(x), "%d-%b-%Y"))
     df5['Date Issued'] = df5['Date Issued'].apply(lambda x: datetime.strftime(dt.from_excel(x), "%d-%b-%Y"))
+    df4['First Binary'] = df4['First Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
+    df4['Last Binary'] = df4['Last Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     pd.set_option("display.max_columns", None)
     pd.set_option("display.max_colwidth", None)
 
@@ -44,7 +50,7 @@ class App(tk.Tk):
         self.title("Mitigation Ronin v47.py")
         self.config(bg='#242526')
         #label
-        self.lbl = tk.Label(self, text="Welcome to Mitigation Ronin (v47)!", 
+        self.lbl = tk.Label(self, text=f"Welcome to Mitigation Ronin (v47), {username}!", 
                             font=('Arial', 14), 
                             bg='#050505', 
                             fg='lightgray')
@@ -86,24 +92,13 @@ class App(tk.Tk):
         self.ip_btn.bind("<Leave>", func=lambda e: self.ip_btn.config(background='gray'))
         self.ip_btn.grid(column=1, row=6, sticky='nsw', padx=400)
         self.ip_btn['command'] = self.clicked_ip
-        # IP whitelist checker
-        self.ip_wlst_btn = tk.Button(self, text="IP Whitelist Check")
-        self.ip_wlst_btn.bind("<Enter>", func=lambda e: self.ip_wlst_btn.config(background='#00FF00'))
-        self.ip_wlst_btn.bind("<Leave>", func=lambda e: self.ip_wlst_btn.config(background='gray'))
-        self.ip_wlst_btn.grid(column=1, row=6, sticky='nse', padx=400)
-        self.ip_wlst_btn['command'] = self.clicked_ip_wlst
+
         # Domain Mitigation Search
         self.dom_btn = tk.Button(self, text="Domain Mitigation")
         self.dom_btn.bind("<Enter>", func=lambda e: self.dom_btn.config(background='#00FF00'))
         self.dom_btn.bind("<Leave>", func=lambda e: self.dom_btn.config(background='gray'))
         self.dom_btn['command'] = self.clicked_dom
         self.dom_btn.grid(column=1, row=8, sticky='nsw', padx=400)
-        # Domain whitelist checker
-        self.dom_wlst_btn = tk.Button(self, text="Domain Whitelist Check")
-        self.dom_wlst_btn.bind("<Enter>", func=lambda e: self.dom_wlst_btn.config(background='#00FF00'))
-        self.dom_wlst_btn.bind("<Leave>", func=lambda e: self.dom_wlst_btn.config(background='gray'))
-        self.dom_wlst_btn['command'] = self.clicked_dom_wlst
-        self.dom_wlst_btn.grid(column=1, row=8, sticky='nse', padx=400)
         #Update Reference Sheet Button
         self.update_btn = tk.Button(self, text="Update Reference Sheet")
         self.update_btn.bind("<Enter>", func=lambda e: self.update_btn.config(background='#00FF00'))
@@ -114,20 +109,6 @@ class App(tk.Tk):
         self.update_ip_cache = {}
         self.dom_mit_res = []
         self.ip_mit_res = []
-        #Upload Reference Sheet Button
-        self.upload_btn = tk.Button(self, text='broken upload button')
-        self.upload_btn.bind("<Enter>", func=lambda e: self.upload_btn.config(background='#00FF00'))
-        self.upload_btn.bind("<Leave>", func=lambda e: self.upload_btn.config(background='gray'))
-        self.upload_btn['command'] = self.upload_file()
-        self.upload_btn.grid(column=1, row=1, sticky='nsw', padx=400)
-        # add to whitelist
-        self.whitelist_btn = tk.Button(self, text='Check for whitelist')
-        self.whitelist_btn.bind("<Enter>", func=lambda e: self.whitelist_btn.config(background='#00FF00'))
-        self.whitelist_btn.bind("<Leave>", func=lambda e: self.whitelist_btn.config(background='gray'))
-        self.whitelist_btn['command'] = self.whitelst_check
-        self.whitelist_btn.grid(column=1, row=12, sticky='ns')
-        self.whitelist_ip_cache = {}
-        self.whitelist_dom_cache = {}
         
         ###################################### need to do tksheet - fix the input tot he sheet ##########################
         self.sheet = tksheet.Sheet(self, 
@@ -187,17 +168,16 @@ class App(tk.Tk):
                                                                                              c=0, 
                                                                                              checked=False),
                                               text = "Mitigate")
+        self.sub_sheet.create_header_dropdown(c=1,
+                                              values = ["Block", "Whitelist", "Unblock"],
+                                              set_value= "Whitelist",
+                                              selection_function= self.header_dropdown_selected)
         self.sub_sheet.highlight_columns(columns=[0, 1], bg=None, fg="white", overwrite = True)
         self.sub_sheet.create_checkbox(c=0,
                                        r="all",
                                        checked = False,
                                        state = "normal",
                                        text = "Checkbox")
-        self.sub_sheet.create_checkbox(c=1,
-                                       r="all",
-                                       checked = False,
-                                       state = "normal",
-                                       text = "Whitelist")
         
         self.sub_sheet.change_theme("dark")
         self.sub_sheet.enable_bindings(("single_select", #"single_select" or "toggle_select"
@@ -230,28 +210,22 @@ class App(tk.Tk):
         ######################################## TKSHEET Functions ########################################
         
     def header_dropdown_selected(self, event = None):
-        #breakpoint()
-        hdrs = self.sheet.headers()
-        # this function is run before header cell data is set by dropdown selection
-        # so we have to get the new value from the event
-        hdrs[event.column] = event.text
-        #print(hdrs)
-        if all(dd == "Block" for dd in hdrs):
-            print([dd for dd in hdrs])
-            self.sub_sheet.set_sheet_data([n for n in self.df_mit.values.tolist()],
-                                      reset_col_positions = False,
-                                      reset_row_positions = False)
-        else:
-            self.sub_sheet.set_sheet_data([row for row in [n for n in self.df_mit.values.tolist()] if all(row[c] == e or e == "Block" for c, e in enumerate(hdrs))],
-                                      reset_col_positions = False,
-                                      reset_row_positions = False)
-            
+        dropdown_list = ['Block', 'Unblock', 'Whitelist']
+        self.sub_sheet.create_dropdown(r="all",
+                                       c=1,
+                                       values=dropdown_list,
+                                       set_value=None,# This is the one I need to fix
+                                       state="readonly",
+                                       redraw=True,
+                                       selection_function=None)
+    
     def check_all(self, r="all", c=0, checked=True):
         self.sub_sheet.create_checkbox(r="all",
                                        c=0,      
                                        checked=True, 
                                        redraw=True,
                                        text="selected")
+
     ########################################### Button Functions ############################
     def upload_file(self):
         #file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])#, ("All Files"), ("*.*")])
@@ -264,23 +238,110 @@ class App(tk.Tk):
             print("File not chosen.")
             return "File not chosen"
         
-    def whitelst_check(self):
-        self.whitelist_btn_cache = {i[2]:i for i in self.dom_mit_res}
-        print(self.whitelist_btn_cache)
-        pass
+        ############################## in process #######################################
+        ##################################################################################
         
     def clicked_update(self):
+        ip_df = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]) 
+        dom_df = pd.DataFrame(columns=['Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
+        dom_df = dom_df.append(self.df5, ignore_index=False)
+        ip_df = ip_df.append(self.df1, ignore_index=False)
         self.uwu_it()
-        today = datetime.date.today()
-        save_date = today.strftime("%Y%m%d")
-        self.update_dom_cache = {i[2]:i for i in self.dom_mit_res}
-        print(self.update_dom_cache)
-        self.update_ip_cache = {i[4]:i for i in self.ip_mit_res}
-        print(self.update_ip_cache)
+        save_date = datetime.now().strftime("%Y%m%d")
+        update_dom_cache = {f"Domain {i[2]}":i for i in self.dom_mit_res}
+        update_ip_cache = {f"IP {i[4]}":i for i in self.ip_mit_res}
+        update_dict = {**update_dom_cache, **update_ip_cache}
+        doms = []
+        ips = []
+        ipwhites = []
+        for k,v in update_dict.items():
+            #print(f"{k} {v}")
+            if search('Domain', k):
+                if v[0]==True and v[1]=="Block":
+                    # need to... create a df_block
+                    doms.append(v[2:])
+                    continue
+                elif v[1]=="Whitelist":
+                    ipwhites.append(v[2:])
+                    continue
+            elif search('IP', k):
+                if v[0]==True and v[1]=="Block":
+
+                    ips.append(v[2:])
+                    continue
+
+        dom_df = dom_df.append(pd.DataFrame(doms, columns=['Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"]), ignore_index=True)
+        ip_df = ip_df.append(pd.DataFrame(ips, columns = ['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]), ignore_index=True)
+        root = tk.Tk()
+        root.geometry("500x500")
+        root.pack_propagate(False)
+        root.resizable( 0, 0)
+        top = tk.Frame(root)
+        bottom= tk.Frame(root)
+        top.pack(side="top")
+        bottom.pack(side="bottom")
+        frame1 = tk.LabelFrame(root, text="IP Data")
+        frame1.place(height=250, width=500)
+        frame2 = tk.LabelFrame(root, text="Domain Data")
+        frame2.place(height=250, width=500, rely=0.455, relx=0)
+        root.title("Please Confirm Mitigation Updates")
+        def onClick():
+            dom = pt.Table(root, dataframe=dom_df, showtoolbar=True, showstatusbar=True) # This doesn't work
+            tk.messagebox.showinfo(dom.show())
+
+        button = tk.Button(root, text="proceed with update?", command=onClick)
+        button.pack(in_=bottom, side="left")
+        butt = tk.Button(root, text="cancel", command=root.destroy)
+        butt.pack(in_=bottom, side="right")
+        tv1 = ttk.Treeview(frame1)
+        tv1.place(relheight=1, relwidth=1)
+        treescrolly1= tk.Scrollbar(frame1, orient="vertical", command=tv1.yview)
+        treescrollx1 = tk.Scrollbar(frame1, orient="horizontal", command=tv1.xview)
+        tv1.configure(xscrollcommand=treescrollx1.set, yscrollcommand=treescrolly1.set)
+        treescrollx1.pack(side="bottom", fill="x")
+        # known issue - the x scroll won't show on top frame
+        treescrolly1.pack(side="right", fill="y")
+        tv1['column'] = list(ip_df.columns)
+        tv1['show'] = "headings"
+        
+        tv2 = ttk.Treeview(frame2)
+        tv2.place(relheight=1, relwidth=1)
+        treescrolly2= tk.Scrollbar(frame2, orient="vertical", command=tv2.yview)
+        treescrollx2 = tk.Scrollbar(frame2, orient="horizontal", command=tv2.xview)
+        tv2.configure(xscrollcommand=treescrollx2.set, yscrollcommand=treescrolly2.set)
+        treescrollx2.pack(side="bottom", fill="x")
+        treescrolly2.pack(side="right", fill="y")
+        
+        tv1['column'] = list(ip_df.columns)
+        tv1['show'] = "headings"
+        tv2['column'] = list(dom_df.columns)
+        tv2['show'] = "headings"
+        
+        for column in tv1['columns']:
+            tv1.heading(column, text=column)
+        
+        ip_df_rows = ip_df.tail(len(self.ip_mit_res)).to_numpy().tolist()
+        for row in ip_df_rows:
+            tv1.insert("", "end", values=row)
+            
+        for column in tv2['columns']:
+            tv2.heading(column, text=column)
+            
+        dom_df_rows = dom_df.tail(len(self.dom_mit_res)).to_numpy().tolist()
+        for row in dom_df_rows:
+            tv2.insert("", "end", values=row)
+                        
+        root.mainloop()
+
+        excel_dict = {}
+        #print(f"compiled update cache for better processing: {update_dict}")
         
     # This gives a pop-up of the results of the mitigation search.
+    
+                    ##################################################################################
     def clicked_ip(self):
         # Data must be expressed as a list of lists...
+        #print(self.ip_search().values.tolist()[0])
         self.uwu_it()
         self.ip_ref_res = [i for i in self.ip_search().values.tolist()]
         self.sheet.set_sheet_data(self.ip_ref_res)
@@ -288,84 +349,16 @@ class App(tk.Tk):
         self.ip_mit_res = [i for i in self.ip_mit.values.tolist()]
         self.sub_sheet.set_sheet_data(self.ip_mit_res)
         self.sub_sheet.headers(newheaders=['Mitigated', 'Whitelist', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        self.sub_sheet.create_checkbox(r="all",
-                                       c=0,
-                                       checked = False,
-                                       text = "Checkbox")
         self.sub_sheet.create_header_checkbox(c=0, text="Mitigate", checked=False, check_function=self.check_all)
-        self.sub_sheet.create_checkbox(r="all",
+        self.sub_sheet.create_dropdown(r="all",
                                        c=1,
-                                       checked=False,
-                                       text="Whitelist")
+                                       values=['Whitelist', 'Block', 'Unblock'],
+                                       set_value=None,
+                                       state="readonly",
+                                       redraw=True,
+                                       selection_function=None)
         
-    def clicked_ip_wlst(self):
-        self.ip_ref_res = [i for i in self.ip_wlst_chk().values.tolist()]
-        self.ip_mit_res = [i for i in self.ip_mit.values.tolist()]
         
-        self.sheet.set_sheet_data(self.ip_ref_res)
-        self.sub_sheet.set_sheet_data(self.ip_mit_res)
-
-        self.sheet.headers(newheaders = ['Whitelisted', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        self.sub_sheet.headers(newheaders=['Mitigated', 'Whitelist', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        self.sub_sheet.create_checkbox(r="all",
-                                       c=0,
-                                       checked = False,
-                                       text = "Checkbox")
-        self.sub_sheet.create_header_checkbox(c=0, text="Mitigate", checked=False, check_function=self.check_all)
-        self.sub_sheet.create_checkbox(r="all",
-                                       c=1,
-                                       checked=False,
-                                       text="Whitelist")
-        
-    def ip_wlst_chk(self):
-        ip_input = self.txt_ip.get("1.0","end-1c").splitlines() #split lines of input
-        ip_input = [i.strip() for i in ip_input] # clean up in case of spaces
-        for ip in ip_input:
-            if ip_input[0] == "paste your IP's here: ":
-                continue
-            else:
-                pass
-        ip_wlst = self.df2['CIDR'].tolist()
-        mitigations = []
-        unmitigated = []
-        cidr_resp = []
-        for cidr in ip_wlst:
-            for ip in ip_input:
-                if ipaddress.ip_address(ip) in ipaddress.ip_interface(cidr).network and ip not in mitigations:
-                    cidr_resp.append(cidr)
-                    mitigations.append(ip)
-                    continue
-                elif ip not in unmitigated:
-                    unmitigated.append(ip)
-                    continue
-        unmitigated = [x for x in unmitigated if x not in mitigations]
-        print(cidr_resp)
-        self.ip_mit = pd.DataFrame(columns=['Whitelistedted', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        self.ip_mit['CIDR'] = pd.Series(unmitigated, index=list(range(0, len(unmitigated))))
-        self.ip_mit.insert(1, 'Whitelist', [i for i in list(range(0, len(unmitigated)))])
-        self.ip_mit.fillna('', inplace=True)
-        df_ref = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
-        df_ref = self.df2.loc[self.df2['CIDR'].isin(cidr_resp)]
-        df_ref.insert(0, 'Whitelisted', pd.Series(mitigations), dtype='object')
-        df_ref.fillna('', inplace=True)
-        return df_ref
-        
-    def dom_wlst_chk(self):
-        # create list from input box
-        doms = self.txt_dom.get("1.0", "end-1c").splitlines()
-        doms = [i.strip() for i in doms] # input validations
-        self.df_mit = pd.DataFrame(columns=['Mitigate', "Whitelist", 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
-        try:
-            #find matches in reference sheet that match self.doms
-            dom_list = self.df6["Domain"].tolist()
-            self.df_mit["Domain"] = [i for i in doms if i not in dom_list]
-            self.df_mit.fillna('', inplace=True)
-            df_ref = self.df6.loc[self.df6["Domain"].isin(doms)]
-            df_ref.insert(0, "Mitigate", ["Whitelisted" for i in range(len(df_ref.index))])
-            df_ref.fillna('', inplace=True)
-            return df_ref
-        except:
-            messagebox.showerror("Error", f"{[i for i in doms]} is not a valid domain.")
         
     def clicked_dom(self):
         try:
@@ -382,95 +375,117 @@ class App(tk.Tk):
                                            c=0,
                                            checked = False,
                                            text = "Checkbox")
-            self.sub_sheet.create_checkbox(c=1,
-                                           r="all",
-                                           checked = False,
-                                           state = "normal",
-                                           text = "Whitelist")
+            self.sub_sheet.create_dropdown(r="all",
+                                       c=1,
+                                       values=['Whitelist', 'Block', 'Unblock'],
+                                       set_value=None,
+                                       state="readonly",
+                                       redraw=True,
+                                       selection_function=None)
             
             self.sub_sheet.create_header_dropdown(c=1,
                                                   values = ["Block", "Whitelist", "Unblock"],
-                                                  set_value= "Whitelist",
+                                                  set_value= "Block",
                                                   selection_function= self.header_dropdown_selected)
-            
         except:
-            self.sheet.set_sheet_data([f"{d} returns no results" for d in self.dom_search.values.tolist()][0])
+            messagebox.showinfo("No Results", message="No results were found in the domain search. ")
+            #self.sheet.set_sheet_data([f"{d} returns no results" for d in self.dom_search.values.tolist()][0])
         
-    def clicked_dom_wlst(self):
-        try:
-            # pandas data has to be expressed as list of lists
-            self.dom_ref_res = [d for d in self.dom_wlst_chk().values.tolist()]
-            self.dom_mit_res = [n for n in self.df_mit.values.tolist()]
-            self.sheet.set_sheet_data(self.dom_ref_res)
-            self.sub_sheet.set_sheet_data(self.dom_mit_res)
-            ## I think I can create a function in the header checkbox to check all for the other boxes...
-            self.sheet.headers(newheaders = self.dom_headers)
-            self.sub_sheet.headers(newheaders = self.dommit_headers)
-            self.sub_sheet.create_header_checkbox(c=0, text="Mitigate", checked=False, check_function=self.check_all)
-            self.sub_sheet.create_checkbox(r="all",
-                                           c=0,
-                                           checked = False,
-                                           text = "Checkbox")
-            self.sub_sheet.create_checkbox(c=1,
-                                           r="all",
-                                           checked = False,
-                                           state = "normal",
-                                           text = "Whitelist")
-            
-            self.sub_sheet.create_header_dropdown(c=1,
-                                                  values = ["Block", "Whitelist", "Unblock"],
-                                                  set_value= "Whitelist",
-                                                  selection_function= self.header_dropdown_selected)
-            
-        except:
-            self.sheet.set_sheet_data([f"{d} returns no results" for d in self.dom_search.values.tolist()][0])
 
         ######################################  This seems to work ###############################
     def ip_search(self):
         #input ip addresses
         ip_input = self.txt_ip.get("1.0","end-1c").splitlines() #split lines of input
-        ip_input = [i.strip() for i in ip_input] # clean up in case of spaces
+        ip_input = [i.strip() for i in ip_input if i.strip() != ""] # clean up in case of spaces
         for ip in ip_input:
             if ip_input[0] == "paste your IP's here: ":
                 continue
             else:
                 pass
-        cidr_list = self.df1['CIDR'].tolist()
-        print(len(cidr_list))
+        cidr_list = self.df1['CIDR'].tolist()# badguys IP's
+        white_list = self.df2['CIDR'].tolist() # Whitelist IP's
+        army_list = self.df3['CIDR'].tolist() #Army IP's
+        res_list = self.df4['CIDR'].tolist()
+        #print(len(cidr_list))
         mitigations = []
         unmitigated = []
         cidr_resp = []
-        for cidr in cidr_list:
+        for cidr in cidr_list: # This iterates through to check ip in each cidr range
             for ip in ip_input:
+                if ipaddress.ip_address(ip) in ipaddress.ip_interface(cidr).network and ip not in mitigations:
+                    cidr_resp.append(cidr) # the CIDRs from our IP block list
+                    mitigations.append(ip)  # moving the ip_input to mitigations if it's a match
+                    continue
+                elif ip not in unmitigated:
+                    unmitigated.append(ip) #moving ip_input to unmitigated if not a match
+                    continue
+        unmitigated = [x for x in unmitigated if x not in mitigations] # grabs ones not in the mitigation list already
+        mbox = f"Kawaii~! {len(unmitigated)} unmitigated IP's found! I'm checking the whitelist now, {username} sempai!"
+        flags = uwuify.SMILEY | uwuify.YU
+        messagebox.askokcancel(title='Results', message=uwuify.uwu(mbox, flags=flags))
+        for cidr in white_list:
+            for ip in unmitigated:
                 if ipaddress.ip_address(ip) in ipaddress.ip_interface(cidr).network and ip not in mitigations:
                     cidr_resp.append(cidr)
                     mitigations.append(ip)
                     continue
                 elif ip not in unmitigated:
                     unmitigated.append(ip)
+        for cidr in army_list:
+            for ip  in unmitigated:
+                if ipaddress.ip_address(ip) in ipaddress.ip_interface(cidr).network and ip not in mitigations:
+                    cidr_resp.append(cidr)
+                    mitigations.append(ip)
                     continue
+                elif ip not in unmitigated:
+                    unmitigated.append(ip)
+        for cidr in res_list:
+            for ip  in unmitigated:
+                if ipaddress.ip_address(ip) in ipaddress.ip_interface(cidr).network and ip not in mitigations:
+                    cidr_resp.append(cidr)
+                    mitigations.append(ip)
+                    continue
+                elif ip not in unmitigated:
+                    unmitigated.append(ip)
+        
         unmitigated = [x for x in unmitigated if x not in mitigations]
-        self.ip_mit = pd.DataFrame(columns=['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+
+        self.ip_mit = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
         self.ip_mit['CIDR'] = pd.Series(unmitigated, index=list(range(0, len(unmitigated))), dtype='object')
-        self.ip_mit.insert(1, 'Whitelist', [i for i in list(range(0, len(unmitigated)))])
+        self.ip_mit.insert(1, 'Block', [i for i in list(range(0, len(unmitigated)))])
         self.ip_mit.fillna('', inplace=True)
         df_ref = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"], dtype='object')
         df_ref = self.df1.loc[self.df1['CIDR'].isin(cidr_resp)]
-        df_ref.insert(0, 'Mitigated', pd.Series(mitigations))
+        df_ref = df_ref.append(self.df2.loc[self.df2['CIDR'].isin(cidr_resp)])
+        df_ref = df_ref.append(self.df3.loc[self.df3['CIDR'].isin(cidr_resp)])
+        df_ref = df_ref.append(self.df4.loc[self.df4['CIDR'].isin(cidr_resp)])
+        df_ref.insert(0, 'Mitigated', mitigations) # Adds mitigated IP's to df_ref for clicked_ips func
         df_ref.fillna('', inplace=True)
         return df_ref
 
     def dom_search(self): 
         doms = self.txt_dom.get("1.0", "end-1c").splitlines()
+        doms = [url.replace('www.', '') for url in doms]
+        doms = [str(urlparse(url).hostname) if urlparse(url).hostname !=None else url for url in doms]
         doms = [i.strip() for i in doms] # input validations
         self.df_mit = pd.DataFrame(columns=['Mitigate', "Whitelist", 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
         
         try:
             #find matches in reference sheet that match self.doms
-            dom_list = self.df5["Domain"].tolist()
-            self.df_mit["Domain"] = [i for i in doms if i not in dom_list]
+            dom_list = self.df5["Domain"].tolist() # badboy IP's
+            white_list = self.df6['Domain'].tolist()
+            mitigations = [i for i in doms if i not in dom_list]
+            print(mitigations)
+            mitigations = [i for i in mitigations if i not in white_list] # I don't think this is right
+            print(mitigations)
+            self.df_mit['Domain'] = [i for i in mitigations]
             self.df_mit.fillna('', inplace=True)
             df_ref = self.df5.loc[self.df5["Domain"].isin(doms)]
+            mbox = f"Mitigation Ronin found {len(self.df_mit['Domain'].tolist())} unmitigated domains! Checking the whitelist now, senpai!~"
+            flags = uwuify.SMILEY | uwuify.YU
+            resp = uwuify.uwu(mbox, flags=flags)
+            messagebox.askokcancel(title='Test', message=resp)
+            df_ref = df_ref.append(self.df6.loc[self.df6["Domain"].isin(doms)])
             df_ref.insert(0, "Mitigate", ["Mitigated" for i in range(len(df_ref.index))])
             df_ref.fillna('', inplace=True)
             return df_ref
@@ -487,28 +502,3 @@ if __name__ == "__main__":
     app = App()
     app.mainloop()
     
-    
-
-
-
-    
-    
-
-
-
-    
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
