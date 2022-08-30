@@ -7,13 +7,14 @@ import tkinter as tk
 import tksheet
 from re import search, sub
 from tkinter import scrolledtext, ttk, messagebox, filedialog
+import xlsxwriter
 from openpyxl.utils import datetime as dt
 from urllib.parse import urlparse
 import pandas as pd
 import ipaddress
 from datetime import datetime
+from datetime import date as date
 import uwuify
-import pandastable as pt
 import os
 
 ########Fixed the input of the file to the pandas df. Consequently broke the upload and f_lbl stuff. 
@@ -24,7 +25,7 @@ username = os.getlogin().title().split('.')[0]
 
 class App(tk.Tk):
     
-    file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])# ; print(type(file)); print(f"{file}")
+    file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])
     f = pd.ExcelFile(file)
     df_dict = f.parse(sheet_name=[0, 1, 2, 3, 4, 5, 6]) # imports dictionary
     df1, df2, df3, df4, df5, df6, df7 = list(df_dict.values())
@@ -38,9 +39,12 @@ class App(tk.Tk):
     df2['First Binary'] = df2['First Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     df2['Last Binary'] = df2['Last Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     df2['Date Issued'] = df2['Date Issued'].apply(lambda x: datetime.strftime(dt.from_excel(x), "%d-%b-%Y"))
-    df5['Date Issued'] = df5['Date Issued'].apply(lambda x: datetime.strftime(dt.from_excel(x), "%d-%b-%Y"))
+    df3['First Binary'] = df3['First Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
+    df3['Last Binary'] = df3['Last Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     df4['First Binary'] = df4['First Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
     df4['Last Binary'] = df4['Last Binary'].apply(lambda x: str(ipaddress.ip_address(x)))
+    df5['Date Issued'] = df5['Date Issued'].apply(lambda x: datetime.strftime(dt.from_excel(x), "%d-%b-%Y"))
+    df6['Date Issued'] = df6['Date Issued'].apply(lambda x: datetime.strftime(dt.from_excel(x), "%d-%b-%Y"))
     pd.set_option("display.max_columns", None)
     pd.set_option("display.max_colwidth", None)
 
@@ -53,7 +57,7 @@ class App(tk.Tk):
         self.lbl = tk.Label(self, text=f"Welcome to Mitigation Ronin (v47), {username}!", 
                             font=('Arial', 14), 
                             bg='#050505', 
-                            fg='lightgray')
+                            fg='lightgreen')
         self.lbl.grid(column=1, row=0, padx=10, pady=10, sticky='ns')
         # This is all broken
         self.my_str = tk.StringVar()
@@ -64,10 +68,11 @@ class App(tk.Tk):
         self.f_lbl = tk.Label(self, text=f"Reference Sheet Version: {self.file}", bg='black', fg='limegreen')
         self.f_lbl.grid(column=1, row=1, sticky='nse', padx=200)
         
-        self.tk_headers = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]
-        self.ipmit_headers = ['Mitigated', 'Whitelist', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]
+        self.ip_headers = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]
+        self.ipwhite_headers = ['Mitigated', 'Whitelist', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes"]
+        self.army_headers = ['First Binary', 'Last Binary', "CIDR", "NET NAME", "HANDLE", "REG DATE", "ORG HANDLE", "ORG NAME", "ORG CITY", "ORG STATE", "ORG ZIP"]
         self.dom_headers = ["Mitigated", "Domain", "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"]
-        self.dommit_headers = ["Mitigate", "Whitelist", "Domain", "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"]
+        self.domwhite_headers = ["Mitigate", "Whitelist", "Domain", "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"]
         ######################################## IP box #############################################################
         # IP mitigation Textbox
         self.txt_ip = scrolledtext.ScrolledText(self, wrap=tk.WORD,
@@ -86,6 +91,12 @@ class App(tk.Tk):
         self.txt_dom.insert(tk.END, "paste your domains here: ")
         
         ######################################## #buttons# ##########################################################
+        def change_file():
+            self.file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])
+            self.my_str.set(self.file)
+        self.upload_btn = tk.Button(self, text="Upload Reference", 
+                                    command=change_file).grid(column=1, row=2, sticky="nsw")
+        
         # IP Mitigation Search
         self.ip_btn = tk.Button(self, text="IP Mitigation") 
         self.ip_btn.bind("<Enter>", func=lambda e: self.ip_btn.config(background='#00FF00'))
@@ -161,7 +172,7 @@ class App(tk.Tk):
                                    show_y_scrollbar=True)
         self.sub_sheet.set_sheet_data([[i for i in "  mitigation"],
                                       [i for i in "    ronin"]])
-        self.sub_sheet.headers(newheaders=self.ipmit_headers)
+        self.sub_sheet.headers(newheaders=self.ip_headers)
         self.sub_sheet.create_header_checkbox(c=0,
                                               checked = False,
                                               check_function = self.sub_sheet.click_checkbox(r="all", 
@@ -170,7 +181,7 @@ class App(tk.Tk):
                                               text = "Mitigate")
         self.sub_sheet.create_header_dropdown(c=1,
                                               values = ["Block", "Whitelist", "Unblock"],
-                                              set_value= "Whitelist",
+                                              set_value= " ",
                                               selection_function= self.header_dropdown_selected)
         self.sub_sheet.highlight_columns(columns=[0, 1], bg=None, fg="white", overwrite = True)
         self.sub_sheet.create_checkbox(c=0,
@@ -229,7 +240,6 @@ class App(tk.Tk):
     ########################################### Button Functions ############################
     def upload_file(self):
         #file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])#, ("All Files"), ("*.*")])
-        
         if self.file:
             self.my_str.set(self.file)
             return self.file
@@ -244,8 +254,8 @@ class App(tk.Tk):
     def clicked_update(self):
         ip_df = pd.DataFrame(columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]) 
         dom_df = pd.DataFrame(columns=['Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
-        dom_df = dom_df.append(self.df5, ignore_index=False)
         ip_df = ip_df.append(self.df1, ignore_index=False)
+        dom_df = dom_df.append(self.df5, ignore_index=False)
         self.uwu_it()
         save_date = datetime.now().strftime("%Y%m%d")
         update_dom_cache = {f"Domain {i[2]}":i for i in self.dom_mit_res}
@@ -253,25 +263,40 @@ class App(tk.Tk):
         update_dict = {**update_dom_cache, **update_ip_cache}
         doms = []
         ips = []
+        domwhites = []
         ipwhites = []
         for k,v in update_dict.items():
-            #print(f"{k} {v}")
+
             if search('Domain', k):
                 if v[0]==True and v[1]=="Block":
                     # need to... create a df_block
                     doms.append(v[2:])
                     continue
                 elif v[1]=="Whitelist":
-                    ipwhites.append(v[2:])
+                    domwhites.append(v[2:])
+                    continue
+                elif v[1]=="Unblock":
+                    #print(dom_df.loc[dom_df['Domain']==v[2]])
+                    dom_df.drop(dom_df.loc[dom_df['Domain']==v[2]].index, inplace=True)
                     continue
             elif search('IP', k):
                 if v[0]==True and v[1]=="Block":
-
                     ips.append(v[2:])
                     continue
-
+                elif v[0]==True and v[1]=="Whitelist":
+                    ipwhites.append(v[2:])
+                    continue
+                elif v[1]=="Unblock":
+                    ip_df.drop(ip_df.loc[ip_df['CIDR'] == v[4]].index, inplace=True)
+                    continue
+            else:
+                messagebox.showinfo("No Results", message="Did you mean to press the update button?")
+        domwhite_df = self.df6
+        ipwhite_df = self.df2
         dom_df = dom_df.append(pd.DataFrame(doms, columns=['Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"]), ignore_index=True)
         ip_df = ip_df.append(pd.DataFrame(ips, columns = ['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]), ignore_index=True)
+        domwhite_df = domwhite_df.append(pd.DataFrame(domwhites, columns=['Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"]), ignore_index=True)
+        ipwhite_df = ipwhite_df.append(pd.DataFrame(ipwhites, columns=['First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes"]), ignore_index=True)
         root = tk.Tk()
         root.geometry("500x500")
         root.pack_propagate(False)
@@ -285,11 +310,40 @@ class App(tk.Tk):
         frame2 = tk.LabelFrame(root, text="Domain Data")
         frame2.place(height=250, width=500, rely=0.455, relx=0)
         root.title("Please Confirm Mitigation Updates")
-        def onClick():
-            dom = pt.Table(root, dataframe=dom_df, showtoolbar=True, showstatusbar=True) # This doesn't work
-            tk.messagebox.showinfo(dom.show())
+        def onClick(): # update button command
+            # Popup to tell you it's going to save it as this file
+            tk.messagebox.askokcancel(title=f"References_{save_date}", message=f"Saving to References_{save_date}.xlsx")
+            #updating the df's for the new excel file
+            df1 = ip_df
+            df1['First Binary'] = df1['First Binary'].apply(lambda x: int(ipaddress.ip_address(x)))
+            df1['Last Binary'] = df1['Last Binary'].apply(lambda x: int(ipaddress.ip_address(x)))
+            df1['Date Issued'] = df1['Date Issued'].apply(lambda x: (datetime.strptime(x, "%d-%b-%Y").date() - date(1899, 12, 30)).days)
+            df2 = ipwhite_df
+            df2['First Binary'] = df2['First Binary'].apply(lambda x: int(ipaddress.ip_address(x)))
+            df2['Last Binary'] = df2['Last Binary'].apply(lambda x: int(ipaddress.ip_address(x)))
+            df2['Date Issued'] = df2['Date Issued'].apply(lambda x: (datetime.strptime(x, "%d-%b-%Y").date() - date(1899, 12, 30)).days)
+            df3 = self.df3
+            df3['First Binary'] = df3['First Binary'].apply(lambda x: int(ipaddress.ip_address(x)))
+            df3['Last Binary'] = df3['Last Binary'].apply(lambda x: int(ipaddress.ip_address(x)))
+            df4 = self.df4
+            df4['First Binary'] = df4['First Binary'].apply(lambda x: int(ipaddress.ip_address(x)))
+            df4['Last Binary'] = df4['Last Binary'].apply(lambda x: int(ipaddress.ip_address(x)))
+            df5 = dom_df
+            df5['Date Issued'] = df5['Date Issued'].apply(lambda x: (datetime.strptime(x, "%d-%b-%Y").date() - date(1899, 12, 30)).days)
+            df6 = domwhite_df
+            df6['Date Issued'] = df6['Date Issued'].apply(lambda x: (datetime.strptime(x, "%d-%b-%Y").date() - date(1899, 12, 30)).days)
+            df7 = self.df7
+            dflist = [df1, df2, df3, df4, df5, df6, df7] #pack them
+            save_file = filedialog.asksaveasfilename(initialdir=self.file,
+                                                     filetypes=[('Excel files', "*.xlsx")],
+                                                     title=f"References_{save_date}.xlsx")
+            excelwriter = pd.ExcelWriter(save_file, engine="xlsxwriter")
+            for i, df in enumerate(dflist):
+                df.to_excel(excelwriter, sheet_name="Sheet" + str(i+1), index=False)
+            excelwriter.save()
+            
 
-        button = tk.Button(root, text="proceed with update?", command=onClick)
+        button = tk.Button(root, text="proceed with update?", command=onClick) # update button
         button.pack(in_=bottom, side="left")
         butt = tk.Button(root, text="cancel", command=root.destroy)
         butt.pack(in_=bottom, side="right")
@@ -333,10 +387,6 @@ class App(tk.Tk):
                         
         root.mainloop()
 
-        excel_dict = {}
-        #print(f"compiled update cache for better processing: {update_dict}")
-        
-    # This gives a pop-up of the results of the mitigation search.
     
                     ##################################################################################
     def clicked_ip(self):
@@ -345,7 +395,7 @@ class App(tk.Tk):
         self.uwu_it()
         self.ip_ref_res = [i for i in self.ip_search().values.tolist()]
         self.sheet.set_sheet_data(self.ip_ref_res)
-        self.sheet.headers(newheaders = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
+        self.sheet.headers(newheaders = self.ip_headers)
         self.ip_mit_res = [i for i in self.ip_mit.values.tolist()]
         self.sub_sheet.set_sheet_data(self.ip_mit_res)
         self.sub_sheet.headers(newheaders=['Mitigated', 'Whitelist', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"])
@@ -368,8 +418,8 @@ class App(tk.Tk):
             self.sheet.set_sheet_data(self.dom_ref_res)
             self.sub_sheet.set_sheet_data(self.dom_mit_res)
             ## I think I can create a function in the header checkbox to check all for the other boxes...
-            self.sheet.headers(newheaders = self.dom_headers)
-            self.sub_sheet.headers(newheaders = self.dommit_headers)
+            self.sheet.headers(newheaders = ["Mitigated", "Domain", "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
+            self.sub_sheet.headers(newheaders = ["Mitigated", "Block", "Domain", "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
             self.sub_sheet.create_header_checkbox(c=0, text="Mitigate", checked=False, check_function=self.check_all)
             self.sub_sheet.create_checkbox(r="all",
                                            c=0,
@@ -378,25 +428,25 @@ class App(tk.Tk):
             self.sub_sheet.create_dropdown(r="all",
                                        c=1,
                                        values=['Whitelist', 'Block', 'Unblock'],
-                                       set_value=None,
+                                       set_value="Action",
                                        state="readonly",
                                        redraw=True,
                                        selection_function=None)
             
             self.sub_sheet.create_header_dropdown(c=1,
                                                   values = ["Block", "Whitelist", "Unblock"],
-                                                  set_value= "Block",
+                                                  set_value= " ",
                                                   selection_function= self.header_dropdown_selected)
         except:
             messagebox.showinfo("No Results", message="No results were found in the domain search. ")
             #self.sheet.set_sheet_data([f"{d} returns no results" for d in self.dom_search.values.tolist()][0])
         
-
         ######################################  This seems to work ###############################
     def ip_search(self):
         #input ip addresses
         ip_input = self.txt_ip.get("1.0","end-1c").splitlines() #split lines of input
         ip_input = [i.strip() for i in ip_input if i.strip() != ""] # clean up in case of spaces
+        ip_input = [sub(r'[\[\]]', "", ip) for ip in ip_input]
         for ip in ip_input:
             if ip_input[0] == "paste your IP's here: ":
                 continue
@@ -466,6 +516,7 @@ class App(tk.Tk):
     def dom_search(self): 
         doms = self.txt_dom.get("1.0", "end-1c").splitlines()
         doms = [url.replace('www.', '') for url in doms]
+        doms = [sub(r"[\[\]]+", "", url) for url in doms]
         doms = [str(urlparse(url).hostname) if urlparse(url).hostname !=None else url for url in doms]
         doms = [i.strip() for i in doms] # input validations
         self.df_mit = pd.DataFrame(columns=['Mitigate', "Whitelist", 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
@@ -475,9 +526,7 @@ class App(tk.Tk):
             dom_list = self.df5["Domain"].tolist() # badboy IP's
             white_list = self.df6['Domain'].tolist()
             mitigations = [i for i in doms if i not in dom_list]
-            print(mitigations)
             mitigations = [i for i in mitigations if i not in white_list] # I don't think this is right
-            print(mitigations)
             self.df_mit['Domain'] = [i for i in mitigations]
             self.df_mit.fillna('', inplace=True)
             df_ref = self.df5.loc[self.df5["Domain"].isin(doms)]
@@ -501,4 +550,3 @@ class App(tk.Tk):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
-    
