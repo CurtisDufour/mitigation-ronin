@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 """
 Created on Fri May 27 13:06:05 2022
@@ -66,7 +67,7 @@ class App(tk.Tk):
         
         # Label for chosen reference sheet 
         self.f_lbl = tk.Label(self, text=f"Reference Sheet Version: {self.file}", bg='black', fg='limegreen')
-        self.f_lbl.grid(column=1, row=1, sticky='nse', padx=200)
+        self.f_lbl.grid(column=1, row=1, sticky='nswe', padx=200)
         
         self.ip_headers = ['Mitigated', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes", "Scope"]
         self.ipwhite_headers = ['Mitigated', 'Whitelist', 'First Binary', "Last Binary", "CIDR", "Task Order", "Date Issued", "EvalReason","Threat Report", "Comments", "Notes"]
@@ -84,6 +85,10 @@ class App(tk.Tk):
         
         ####################################### #domain box
         # Domain Mitigation Textbox
+        self.mit_lbl = tk.Label(self, text="Current Mitigations, Whitelists, and Reservations", bg='black', fg='limegreen')
+        self.mit_lbl.grid(column=1, row=9, sticky='nswe', padx=200)
+        self.res_lbl = tk.Label(self, text="Unmitigated Observables", bg='black', fg='limegreen')
+        self.res_lbl.grid(column=1, row=11, sticky='nswe', padx=200)
         self.txt_dom = scrolledtext.ScrolledText(self, wrap=tk.WORD,
                                              width=40, height=5,
                                              font=("Arial", 12))
@@ -91,17 +96,17 @@ class App(tk.Tk):
         self.txt_dom.insert(tk.END, "paste your domains here: ")
         
         ######################################## #buttons# ##########################################################
-        def change_file():
-            self.file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])
-            self.my_str.set(self.file)
-        self.upload_btn = tk.Button(self, text="Upload Reference", 
-                                    command=change_file).grid(column=1, row=2, sticky="nsw")
+        # def change_file():
+        #     self.file = filedialog.askopenfilename(filetypes =[("Excel Files", '*.xlsx')])
+        #     self.my_str.set(self.file)
+        # self.upload_btn = tk.Button(self, text="Upload Reference", 
+        #                             command=change_file).grid(column=1, row=2, sticky="nsw")
         
         # IP Mitigation Search
         self.ip_btn = tk.Button(self, text="IP Mitigation") 
         self.ip_btn.bind("<Enter>", func=lambda e: self.ip_btn.config(background='#00FF00'))
         self.ip_btn.bind("<Leave>", func=lambda e: self.ip_btn.config(background='gray'))
-        self.ip_btn.grid(column=1, row=6, sticky='nsw', padx=400)
+        self.ip_btn.grid(column=1, row=6, sticky='nswe', padx=400)
         self.ip_btn['command'] = self.clicked_ip
 
         # Domain Mitigation Search
@@ -109,13 +114,15 @@ class App(tk.Tk):
         self.dom_btn.bind("<Enter>", func=lambda e: self.dom_btn.config(background='#00FF00'))
         self.dom_btn.bind("<Leave>", func=lambda e: self.dom_btn.config(background='gray'))
         self.dom_btn['command'] = self.clicked_dom
-        self.dom_btn.grid(column=1, row=8, sticky='nsw', padx=400)
+        self.dom_btn.grid(column=1, row=8, sticky='nswe', padx=400)
+        
+
         #Update Reference Sheet Button
         self.update_btn = tk.Button(self, text="Update Reference Sheet")
         self.update_btn.bind("<Enter>", func=lambda e: self.update_btn.config(background='#00FF00'))
         self.update_btn.bind("<Leave>", func=lambda e: self.update_btn.config(background='gray'))
         self.update_btn['command'] = self.clicked_update
-        self.update_btn.grid(column=1, row=13, sticky='ns', padx=500, pady=15)
+        self.update_btn.grid(column=1, row=13, sticky='nswe', padx=500, pady=15)
         self.update_dom_cache = {}
         self.update_ip_cache = {}
         self.dom_mit_res = []
@@ -216,7 +223,7 @@ class App(tk.Tk):
                                          "delete",
                                          "undo",
                                          "edit_cell"))
-        self.sub_sheet.grid(column=1, row=11, padx=30, pady=5, sticky="nswe")
+        self.sub_sheet.grid(column=1, row=12, padx=30, pady=5, sticky="nswe")
         
         ######################################## TKSHEET Functions ########################################
         
@@ -445,6 +452,7 @@ class App(tk.Tk):
     def ip_search(self):
         #input ip addresses
         ip_input = self.txt_ip.get("1.0","end-1c").splitlines() #split lines of input
+        ip_input = sorted(list(set(ip_input)))
         ip_input = [i.strip() for i in ip_input if i.strip() != ""] # clean up in case of spaces
         ip_input = [sub(r'[\[\]]', "", ip) for ip in ip_input]
         for ip in ip_input:
@@ -519,6 +527,7 @@ class App(tk.Tk):
         doms = [sub(r"[\[\]]+", "", url) for url in doms]
         doms = [str(urlparse(url).hostname) if urlparse(url).hostname !=None else url for url in doms]
         doms = [i.strip() for i in doms] # input validations
+        doms = sorted(list(set(doms)))
         self.df_mit = pd.DataFrame(columns=['Mitigate', "Whitelist", 'Domain', "Task Order", "Date Issued", "Threat Report", "Comments", "Notes"])
         
         try:
